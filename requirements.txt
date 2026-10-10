@@ -1,7 +1,7 @@
-# Lõi + CLI chỉ cần Python 3.9+ (thư viện chuẩn)
+# Core + CLI only need Python 3.9+ (standard library)
 # GUI:
 PyQt5>=5.15
-# Khuyến nghị (an toàn khi parse XML không tin cậy):
+# Recommended (safe parsing of untrusted XML):
 defusedxml>=0.7
-# Tùy chọn (MIME tham khảo):
-# python-magic>=0.4 ; Windows dùng python-magic-bin
+# Optional (reference MIME type):
+# python-magic>=0.4 ; on Windows use python-magic-bin

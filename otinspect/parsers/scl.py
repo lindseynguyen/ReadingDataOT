@@ -1,11 +1,11 @@
 """Parser IEC 61850 SCL (SCD/ICD/CID/IID/SSD/SED).
 
-Xử lý đúng namespace SCL (lỗi chính của bản cũ), trích xuất:
-- IED: tên, hãng, model, configVersion, AccessPoint, LDevice, LN0/LN
+Handles the SCL namespace correctly (the main bug in the old version) and extracts:
+- IED: name, vendor, model, configVersion, AccessPoint, LDevice, LN0/LN
 - Communication: SubNetwork, ConnectedAP -> IP/subnet/gateway/MAC
 - GOOSE (GSEControl + GSE address: APPID, MAC, VLAN), SMV, ReportControl, DataSet
 - Substation: VoltageLevel / Bay
-và chạy các rule rủi ro cơ bản.
+and runs basic risk rules.
 """
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from ..core.identify import Identity
 from ..core.model import Asset, FileRecord, Finding
 from ..core.registry import register
 
-try:  # chống XXE / billion laughs nếu có defusedxml
+try:  # guard against XXE / billion laughs when defusedxml is available
     from defusedxml.ElementTree import parse as safe_parse  # type: ignore
 except Exception:  # pragma: no cover
     safe_parse = ET.parse
@@ -61,7 +61,7 @@ class SCLParser:
     def parse(self, path: str, rec: FileRecord) -> None:
         root = safe_parse(path).getroot()
         if _local(root.tag) != "SCL":
-            rec.error = f"Root element là <{_local(root.tag)}>, không phải <SCL>"
+            rec.error = f"Root element is <{_local(root.tag)}>, not <SCL>"
             return
 
         header = _children(root, "Header")
@@ -74,7 +74,7 @@ class SCLParser:
             "tool_id": hdr.get("toolID", ""),
         })
 
-        # ---- Communication: map (iedName, apName) -> địa chỉ
+        # ---- Communication: map (iedName, apName) -> address
         comm: dict[tuple[str, str], dict] = {}
         gse_addr: dict[tuple[str, str, str], dict] = {}   # (ied, ldInst, cbName)
         smv_addr: dict[tuple[str, str, str], dict] = {}
@@ -191,24 +191,24 @@ class SCLParser:
                 ip_owner[a.ip].append(a.name)
                 if a.ip in DEFAULT_IPS:
                     out.append(Finding("medium", "SCL-IP-DEFAULT",
-                                       f"IED {a.name} dùng IP mặc định/đặc biệt {a.ip}", src, a.name))
+                                       f"IED {a.name} uses a default/special IP {a.ip}", src, a.name))
                 gw = a.extra.get("gateway", "")
                 if a.subnet and gw:
                     try:
                         net = ipaddress.ip_network(f"{a.ip}/{a.subnet}", strict=False)
                         if ipaddress.ip_address(gw) not in net:
                             out.append(Finding("low", "SCL-GW-OUTSIDE",
-                                               f"Gateway {gw} của {a.name} nằm ngoài subnet {net}", src, a.name))
+                                               f"Gateway {gw} of {a.name} is outside subnet {net}", src, a.name))
                     except ValueError:
                         out.append(Finding("low", "SCL-IP-INVALID",
-                                           f"IP/subnet không hợp lệ ở {a.name}: {a.ip}/{a.subnet}", src, a.name))
+                                           f"Invalid IP/subnet on {a.name}: {a.ip}/{a.subnet}", src, a.name))
             elif "MMS" in a.protocols and rec.summary.get("ied_count", 0) > 1:
                 out.append(Finding("info", "SCL-NO-IP",
-                                   f"IED {a.name} có MMS server nhưng không khai báo IP trong Communication", src, a.name))
+                                   f"IED {a.name} has an MMS server but no IP in the Communication section", src, a.name))
         for ip, owners in ip_owner.items():
             if len(owners) > 1:
                 out.append(Finding("high", "SCL-IP-DUP",
-                                   f"Trùng IP {ip} giữa: {', '.join(owners)}", src))
+                                   f"Duplicate IP {ip} shared by: {', '.join(owners)}", src))
 
         for kind, items in (("GOOSE", goose), ("SV", smv)):
             appids = defaultdict(list)
@@ -221,20 +221,20 @@ class SCLParser:
                     macs[g["MAC"].upper()].append(ref)
                 if not g.get("APPID") and not g.get("MAC"):
                     out.append(Finding("low", f"SCL-{kind}-NOADDR",
-                                       f"{kind} {ref} không có địa chỉ (APPID/MAC) trong Communication", src, g["ied"]))
+                                       f"{kind} {ref} has no address (APPID/MAC) in the Communication section", src, g["ied"]))
                 if kind == "GOOSE" and g.get("VLAN") in ("", "0", "000"):
                     out.append(Finding("info", "SCL-GOOSE-NOVLAN",
-                                       f"GOOSE {ref} không gán VLAN (khó tách lưu lượng bảo vệ)", src, g["ied"]))
+                                       f"GOOSE {ref} has no VLAN (protection traffic cannot be segregated)", src, g["ied"]))
             for v, refs in appids.items():
                 if len(refs) > 1:
                     out.append(Finding("high", f"SCL-{kind}-APPID-DUP",
-                                       f"Trùng APPID {v}: {', '.join(refs)}", src))
+                                       f"Duplicate APPID {v}: {', '.join(refs)}", src))
             for v, refs in macs.items():
                 if len(refs) > 1:
                     out.append(Finding("medium", f"SCL-{kind}-MAC-DUP",
-                                       f"Trùng MAC đích {v}: {', '.join(refs)}", src))
+                                       f"Duplicate destination MAC {v}: {', '.join(refs)}", src))
         if goose or smv:
             out.append(Finding("info", "SCL-62351",
-                               "SCL không thể hiện cấu hình IEC 62351-6 (xác thực GOOSE/SV); cần kiểm tra trên thiết bị",
+                               "SCL does not express IEC 62351-6 (GOOSE/SV authentication); verify on the devices",
                                src))
         return out

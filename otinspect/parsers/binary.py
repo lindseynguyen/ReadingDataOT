@@ -1,5 +1,5 @@
-"""Parser nhị phân chung / firmware: entropy, chữ ký nhúng, chuỗi đáng chú ý,
-Intel HEX (dải địa chỉ). Thay cho đoạn struct.unpack tùy ý ở bản cũ."""
+"""Generic binary / firmware parser: entropy, embedded signatures, interesting strings,
+Intel HEX address range. Replaces the arbitrary struct.unpack of the old version."""
 from __future__ import annotations
 
 import re
@@ -18,7 +18,7 @@ INTERESTING = re.compile(
 EMBED_SIGS = [
     (b"hsqs", "SquashFS"), (b"\x27\x05\x19\x56", "U-Boot uImage"),
     (b"\x1f\x8b\x08", "GZIP stream"), (b"PK\x03\x04", "ZIP"),
-    (b"\x7fELF", "ELF"), (b"-----BEGIN", "PEM (khóa/chứng chỉ)"),
+    (b"\x7fELF", "ELF"), (b"-----BEGIN", "PEM (key/certificate)"),
     (b"\x5d\x00\x00\x80\x00", "LZMA"), (b"UBI#", "UBI image"),
     (b"\x85\x19\x03\x20", "JFFS2"), (b"CrAm", "CramFS"),
 ]
@@ -67,14 +67,14 @@ class BinaryParser:
         with open(path, "rb") as fh:
             data = fh.read(SCAN_LIMIT)
         rec.summary["entropy"] = round(shannon_entropy(data), 3)
-        # entropy theo khối 64KB để thấy vùng nén/mã hóa
+        # per-64KB-block entropy to reveal compressed/encrypted regions
         blocks = [round(shannon_entropy(data[i:i + 65536]), 2) for i in range(0, min(len(data), 65536 * 64), 65536)]
         rec.summary["entropy_blocks"] = blocks
         rec.summary["header_hex"] = data[:16].hex(" ")
 
         embedded = []
         for sig, name in EMBED_SIGS:
-            start = 1  # bỏ qua offset 0 (đã là định dạng chính)
+            start = 1  # skip offset 0 (that is the primary format)
             while len(embedded) < 50:
                 i = data.find(sig, start)
                 if i < 0:
@@ -93,7 +93,7 @@ class BinaryParser:
         rec.summary["interesting_strings"] = hits
         if any(re.search(r"(?i)root:[^:]*:\d+:", h) for h in hits):
             rec.findings.append(Finding("high", "FW-PASSWD-FILE",
-                                        "Firmware chứa nội dung giống /etc/passwd hoặc shadow", rec.path))
+                                        "Firmware contains /etc/passwd- or shadow-like content", rec.path))
         if any("BEGIN" in e["type"] or "PEM" in e["type"] for e in embedded):
             rec.findings.append(Finding("medium", "FW-EMBEDDED-KEY",
-                                        "Firmware chứa khối PEM (có thể là private key nhúng)", rec.path))
+                                        "Firmware contains a PEM block (possibly an embedded private key)", rec.path))

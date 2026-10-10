@@ -1,7 +1,7 @@
-"""Giữ tương thích tên file cũ: chạy giao diện OTInspect.
+"""Backward-compatible entry point: launches the OTInspect GUI.
 
     python data-kiosk.py
-tương đương
+is equivalent to
     python -m otinspect gui
 """
 import sys

@@ -1,6 +1,6 @@
-"""CLI chạy không cần GUI (phù hợp máy trạm air-gapped / jump host).
+"""Headless CLI (suited to air-gapped workstations / jump hosts).
 
-Ví dụ:
+Examples:
     python -m otinspect scan D:\\Substation_A --html report.html --json report.json
     python -m otinspect scan ./samples --csv out/ -q
 """
@@ -15,40 +15,40 @@ from .report.export import SEV_ORDER, to_csv, to_html, to_json
 
 
 def _print_summary(res) -> None:
-    print(f"\nĐã quét: {res.root}")
-    print(f"Tổng file: {len(res.files)}")
+    print(f"\nScanned: {res.root}")
+    print(f"Total files: {len(res.files)}")
     for k, v in res.stats().items():
         print(f"  {k:<12} {v}")
     if res.assets:
-        print(f"\nThiết bị ({len(res.assets)}):")
+        print(f"\nAssets ({len(res.assets)}):")
         for a in res.assets:
-            print(f"  {a.name:<20} {a.vendor:<14} {a.model:<16} {a.ip:<16} {','.join(a.protocols)}")
+            print(f"  {a.name[:22]:<22} {a.kind[:22]:<22} {a.vendor[:18]:<18} {a.model[:16]:<16} {a.ip:<15} {','.join(a.protocols)}")
     fs = sorted(res.findings, key=lambda x: SEV_ORDER.get(x.severity, 9))
     if fs:
-        print(f"\nPhát hiện ({len(fs)}):")
+        print(f"\nFindings ({len(fs)}):")
         for x in fs:
             print(f"  [{x.severity.upper():<6}] {x.rule:<22} {x.message}")
     errs = [f for f in res.files if f.error]
     if errs:
-        print(f"\nLỗi phân tích ({len(errs)}):")
+        print(f"\nParse errors ({len(errs)}):")
         for f in errs:
             print(f"  {f.path}: {f.error}")
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(prog="otinspect", description="Kiểm kê và phân tích file OT/ICS")
+    ap = argparse.ArgumentParser(prog="otinspect", description="Inventory and analyze OT/ICS files")
     ap.add_argument("--version", action="version", version=__version__)
     sub = ap.add_subparsers(dest="cmd", required=True)
-    s = sub.add_parser("scan", help="Quét file hoặc thư mục")
+    s = sub.add_parser("scan", help="Scan a file or directory")
     s.add_argument("path")
-    s.add_argument("--no-recursive", action="store_true", help="Không quét thư mục con")
+    s.add_argument("--no-recursive", action="store_true", help="Do not descend into subdirectories")
     s.add_argument("--workers", type=int, default=4)
-    s.add_argument("--json", help="Xuất JSON")
-    s.add_argument("--html", help="Xuất HTML (in ra PDF từ trình duyệt)")
-    s.add_argument("--csv", help="Thư mục xuất files.csv / assets.csv / findings.csv")
+    s.add_argument("--json", help="Write JSON report")
+    s.add_argument("--html", help="Write HTML report (print to PDF from a browser)")
+    s.add_argument("--csv", help="Directory for files.csv / assets.csv / findings.csv")
     s.add_argument("-q", "--quiet", action="store_true")
     s.add_argument("--fail-on", choices=["high", "medium", "low"],
-                   help="Trả exit code 2 nếu có phát hiện từ mức này trở lên (dùng cho CI/kiểm tra định kỳ)")
+                   help="Exit with code 2 if any finding is at or above this severity (for CI / scheduled checks)")
     a = ap.parse_args(argv)
 
     def prog(i, n, p):

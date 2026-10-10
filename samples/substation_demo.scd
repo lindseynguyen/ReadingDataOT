@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- File mẫu giả lập để test, không phải cấu hình trạm thật -->
+<!-- Synthetic sample for testing, not a real substation configuration -->
 <SCL xmlns="http://www.iec.ch/61850/2003/SCL" version="2007" revision="B" release="4">
   <Header id="TBA_DEMO_110kV" version="1.2" revision="A" toolID="DemoTool"/>
   <Substation name="TBA_DEMO">
@@ -40,7 +40,7 @@
       </ConnectedAP>
     </SubNetwork>
   </Communication>
-  <IED name="F87T_Q01" manufacturer="SIEMENS" type="7UT85" configVersion="V08.40" desc="Bảo vệ so lệch MBA">
+  <IED name="F87T_Q01" manufacturer="SIEMENS" type="7UT85" configVersion="V08.40" desc="Transformer differential protection">
     <AccessPoint name="S1"><Server><Authentication/>
       <LDevice inst="PROT">
         <LN0 lnClass="LLN0" inst="" lnType="LLN0_T">

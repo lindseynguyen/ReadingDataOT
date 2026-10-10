@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<RSLogix5000Content SchemaRevision="1.0" SoftwareRevision="33.01" TargetName="PUMP_STATION" TargetType="Controller" ExportDate="Tue Sep 01 08:00:00 2026">
+<Controller Name="PUMP_STATION" ProcessorType="1756-L83E" MajorRev="33" MinorRev="11" SecurityCode="0">
+<Modules>
+<Module Name="Local" CatalogNumber="1756-L83E" Vendor="1" Major="33" Minor="11"><Ports><Port Id="2" Address="10.10.2.20" Type="Ethernet"/></Ports></Module>
+<Module Name="ENBT_RACK2" CatalogNumber="1756-EN2T" Vendor="1" Major="11" Minor="2" ParentModule="Local"><Ports><Port Id="2" Address="10.10.2.21" Type="Ethernet"/></Ports></Module>
+<Module Name="VFD_P1" CatalogNumber="PowerFlex 755" Vendor="1" Major="14" Minor="1" ParentModule="ENBT_RACK2"><Ports><Port Id="2" Address="10.10.2.31" Type="Ethernet"/></Ports></Module>
+</Modules>
+<Tags>
+<Tag Name="Pump1_Run" DataType="BOOL" ExternalAccess="Read/Write"/>
+<Tag Name="Pump1_Speed" DataType="REAL" ExternalAccess="Read/Write"/>
+<Tag Name="HMI_Password" DataType="STRING" ExternalAccess="Read/Write"/>
+</Tags>
+<Programs><Program Name="MainProgram"><Routines><Routine Name="MainRoutine" Type="RLL"/><Routine Name="PID" Type="ST"/></Routines></Program></Programs>
+<Tasks><Task Name="MainTask" Type="CONTINUOUS"/></Tasks>
+</Controller>
+</RSLogix5000Content>

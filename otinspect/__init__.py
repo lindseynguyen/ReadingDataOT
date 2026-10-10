@@ -1,2 +1,2 @@
-"""OTInspect - kiểm kê và phân tích file trong hệ thống OT/ICS."""
+"""OTInspect - inventory and analysis of files in OT/ICS environments."""
 __version__ = "0.2.0"

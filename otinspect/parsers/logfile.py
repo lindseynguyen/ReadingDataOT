@@ -1,5 +1,5 @@
-"""Parser log/văn bản/cấu hình: đếm mức độ, khoảng thời gian, IP xuất hiện,
-và tìm thông tin nhạy cảm lưu cleartext (password, SNMP community...)."""
+"""Log / text / config parser: severity counts, time range, IPs seen,
+and cleartext secrets (passwords, SNMP communities...)."""
 from __future__ import annotations
 
 import re
@@ -67,7 +67,7 @@ class LogParser:
                         val = sm.group(sm.lastindex or 0)
                         rec.findings.append(Finding(
                             "high" if rule != "CFG-SNMP-COMMUNITY" or val.lower() in ("public", "private") else "medium",
-                            rule, f"Dòng {lines}: phát hiện bí mật dạng cleartext ({_mask(val)})", rec.path))
+                            rule, f"Line {lines}: cleartext secret found ({_mask(val)})", rec.path))
         rec.summary.update({
             "lines": lines,
             "levels": dict(counts),

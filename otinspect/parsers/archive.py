@@ -1,5 +1,5 @@
-"""Archive ZIP (gồm Siemens TIA .zap/.ap, ...): liệt kê nội dung,
-nhận dạng từng file bên trong mà không giải nén ra đĩa."""
+"""ZIP archives (including Siemens TIA .zap/.ap, ...): list contents and
+identify each member without extracting to disk."""
 from __future__ import annotations
 
 import zipfile
@@ -10,7 +10,7 @@ from ..core.model import FileRecord, Finding
 from ..core.registry import register
 
 MAX_MEMBERS = 5000
-MAX_RATIO = 200          # chống zip bomb
+MAX_RATIO = 200          # zip bomb guard
 
 
 @register
@@ -32,14 +32,14 @@ class ZipParser:
             comp = sum(i.compress_size for i in infos) or 1
             if total / comp > MAX_RATIO:
                 rec.findings.append(Finding("medium", "ZIP-BOMB",
-                                            f"Tỉ lệ nén bất thường ({total // comp}x)", rec.path))
+                                            f"Abnormal compression ratio ({total // comp}x)", rec.path))
                 return
             for info in infos[:MAX_MEMBERS]:
                 if info.is_dir():
                     continue
                 if info.filename.startswith("/") or ".." in info.filename.split("/"):
                     rec.findings.append(Finding("medium", "ZIP-PATH-TRAVERSAL",
-                                                f"Entry có đường dẫn nguy hiểm: {info.filename}", rec.path))
+                                                f"Entry with dangerous path: {info.filename}", rec.path))
                     continue
                 with zf.open(info) as fh:
                     head = fh.read(4096)

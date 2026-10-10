@@ -1,0 +1,13 @@
+$ Synthetic EDS for testing
+[File]
+        DescText = "Demo drive EDS";
+        Revision = 1.1;
+[Device]
+        VendCode = 1;
+        VendName = "Rockwell Automation/Allen-Bradley";
+        ProdType = 123;
+        ProdCode = 9001;
+        MajRev = 14;
+        MinRev = 1;
+        ProdName = "PowerFlex 755";
+        Catalog = "20G1";

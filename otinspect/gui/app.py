@@ -1,5 +1,5 @@
-"""Giao diện PyQt5: quét trong QThread (không treo), bảng File / Thiết bị /
-Phát hiện có lọc và sắp xếp, panel chi tiết, xuất HTML/JSON/CSV."""
+"""PyQt5 GUI: scans in a QThread (no freezing), File / Asset /
+Finding tables with filter and sort, detail panel, HTML/JSON/CSV export."""
 from __future__ import annotations
 
 import json
@@ -67,41 +67,41 @@ def _fill(t: QtWidgets.QTableWidget, rows: list[list], payload: list | None = No
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("OTInspect – Kiểm kê file OT/ICS")
+        self.setWindowTitle("OTInspect – OT/ICS File Inventory")
         self.resize(1300, 820)
         self.result: ScanResult | None = None
         self.worker: ScanWorker | None = None
 
-        # --- thanh chọn đường dẫn
+        # --- path bar
         self.path_edit = QtWidgets.QLineEdit()
-        self.path_edit.setPlaceholderText("Chọn file hoặc thư mục cần phân tích…")
-        b_file = QtWidgets.QPushButton("Chọn file…")
-        b_dir = QtWidgets.QPushButton("Chọn thư mục…")
-        self.recursive = QtWidgets.QCheckBox("Quét thư mục con")
+        self.path_edit.setPlaceholderText("Select a file or folder to analyze…")
+        b_file = QtWidgets.QPushButton("Open file…")
+        b_dir = QtWidgets.QPushButton("Open folder…")
+        self.recursive = QtWidgets.QCheckBox("Include subfolders")
         self.recursive.setChecked(True)
-        self.b_scan = QtWidgets.QPushButton("Phân tích")
+        self.b_scan = QtWidgets.QPushButton("Analyze")
         self.b_scan.setDefault(True)
         b_file.clicked.connect(self.pick_file)
         b_dir.clicked.connect(self.pick_dir)
         self.b_scan.clicked.connect(self.start_scan)
         top = QtWidgets.QHBoxLayout()
-        for w in (QtWidgets.QLabel("Đường dẫn:"), self.path_edit, b_file, b_dir, self.recursive, self.b_scan):
+        for w in (QtWidgets.QLabel("Path:"), self.path_edit, b_file, b_dir, self.recursive, self.b_scan):
             top.addWidget(w)
 
-        # --- bộ lọc + tabs
+        # --- filter + tabs
         self.filter_edit = QtWidgets.QLineEdit()
-        self.filter_edit.setPlaceholderText("Lọc nhanh (tên, IP, loại, rule…)")
+        self.filter_edit.setPlaceholderText("Quick filter (name, IP, type, rule…)")
         self.filter_edit.textChanged.connect(self.apply_filter)
-        self.summary_lbl = QtWidgets.QLabel("Chưa quét")
+        self.summary_lbl = QtWidgets.QLabel("Not scanned yet")
 
-        self.t_files = _table(["Đường dẫn", "Loại", "Mô tả", "Kích thước", "SHA-256", "Lỗi"])
-        self.t_assets = _table(["Tên", "Loại", "Hãng", "Model", "Version", "IP", "Subnet", "MAC", "Giao thức", "Nguồn"])
-        self.t_find = _table(["Mức", "Rule", "Mô tả", "Thiết bị", "Nguồn"])
+        self.t_files = _table(["Path", "Category", "Description", "Size", "SHA-256", "Error"])
+        self.t_assets = _table(["Name", "Kind", "Vendor", "Model", "Version", "IP", "Subnet", "MAC", "Protocols", "Source"])
+        self.t_find = _table(["Severity", "Rule", "Message", "Asset", "Source"])
         self.t_files.itemSelectionChanged.connect(self.show_detail)
         self.tabs = QtWidgets.QTabWidget()
         self.tabs.addTab(self.t_files, "File")
-        self.tabs.addTab(self.t_assets, "Thiết bị")
-        self.tabs.addTab(self.t_find, "Phát hiện rủi ro")
+        self.tabs.addTab(self.t_assets, "Assets")
+        self.tabs.addTab(self.t_find, "Findings")
 
         self.detail = QtWidgets.QPlainTextEdit()
         self.detail.setReadOnly(True)
@@ -111,12 +111,12 @@ class MainWindow(QtWidgets.QMainWindow):
         split.addWidget(self.detail)
         split.setSizes([520, 220])
 
-        # --- nút dưới
+        # --- bottom bar
         self.progress = QtWidgets.QProgressBar()
         self.progress.setVisible(False)
         bot = QtWidgets.QHBoxLayout()
-        for text, fn in (("Xuất HTML", self.export_html), ("Xuất JSON", self.export_json),
-                         ("Xuất CSV", self.export_csv), ("Tham khảo IEC 61850",
+        for text, fn in (("Export HTML", self.export_html), ("Export JSON", self.export_json),
+                         ("Export CSV", self.export_csv), ("IEC 61850 reference",
                                                          lambda: webbrowser.open("https://iec61850.dvl.iec.ch/"))):
             b = QtWidgets.QPushButton(text)
             b.clicked.connect(fn)
@@ -137,14 +137,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setCentralWidget(w)
         self.setAcceptDrops(True)
 
-    # ---------- chọn đường dẫn / kéo thả
+    # ---------- path selection / drag and drop
     def pick_file(self):
-        p, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Chọn file")
+        p, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Open file")
         if p:
             self.path_edit.setText(p)
 
     def pick_dir(self):
-        p = QtWidgets.QFileDialog.getExistingDirectory(self, "Chọn thư mục")
+        p = QtWidgets.QFileDialog.getExistingDirectory(self, "Open folder")
         if p:
             self.path_edit.setText(p)
 
@@ -158,16 +158,16 @@ class MainWindow(QtWidgets.QMainWindow):
             self.path_edit.setText(urls[0].toLocalFile())
             self.start_scan()
 
-    # ---------- quét
+    # ---------- scan
     def start_scan(self):
         path = self.path_edit.text().strip()
         if not os.path.exists(path):
-            QtWidgets.QMessageBox.warning(self, "OTInspect", "Đường dẫn không tồn tại.")
+            QtWidgets.QMessageBox.warning(self, "OTInspect", "Path does not exist.")
             return
         self.b_scan.setEnabled(False)
         self.progress.setVisible(True)
         self.progress.setValue(0)
-        self.summary_lbl.setText("Đang quét…")
+        self.summary_lbl.setText("Scanning…")
         self.worker = ScanWorker(path, self.recursive.isChecked())
         self.worker.progress.connect(self.on_progress)
         self.worker.done.connect(self.on_done)
@@ -182,7 +182,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def on_failed(self, msg):
         self.b_scan.setEnabled(True)
         self.progress.setVisible(False)
-        QtWidgets.QMessageBox.critical(self, "Lỗi", msg)
+        QtWidgets.QMessageBox.critical(self, "Error", msg)
 
     def on_done(self, res: ScanResult):
         self.result = res
@@ -197,10 +197,10 @@ class MainWindow(QtWidgets.QMainWindow):
         _fill(self.t_find, [[x.severity, x.rule, x.message, x.asset, os.path.basename(x.source)] for x in fs],
               colors=[SEV_COLOR.get(x.severity) for x in fs])
         high = sum(1 for x in fs if x.severity == "high")
-        self.summary_lbl.setText(f"{len(res.files)} file · {len(res.assets)} thiết bị · "
-                                 f"{len(fs)} phát hiện ({high} cao)")
-        self.tabs.setTabText(1, f"Thiết bị ({len(res.assets)})")
-        self.tabs.setTabText(2, f"Phát hiện rủi ro ({len(fs)})")
+        self.summary_lbl.setText(f"{len(res.files)} files · {len(res.assets)} assets · "
+                                 f"{len(fs)} findings ({high} high)")
+        self.tabs.setTabText(1, f"Assets ({len(res.assets)})")
+        self.tabs.setTabText(2, f"Findings ({len(fs)})")
         self.apply_filter(self.filter_edit.text())
 
     def show_detail(self):
@@ -221,17 +221,17 @@ class MainWindow(QtWidgets.QMainWindow):
                                       for c in range(t.columnCount()))
                 t.setRowHidden(r, not hit)
 
-    # ---------- xuất
+    # ---------- export
     def _need(self) -> bool:
         if not self.result:
-            QtWidgets.QMessageBox.information(self, "OTInspect", "Chưa có kết quả để xuất.")
+            QtWidgets.QMessageBox.information(self, "OTInspect", "Nothing to export yet.")
             return False
         return True
 
     def export_html(self):
         if not self._need():
             return
-        p, _ = QtWidgets.QFileDialog.getSaveFileName(self, "Lưu HTML", "ot_report.html", "HTML (*.html)")
+        p, _ = QtWidgets.QFileDialog.getSaveFileName(self, "Save HTML", "ot_report.html", "HTML (*.html)")
         if p:
             to_html(self.result, p)
             webbrowser.open("file://" + os.path.abspath(p))
@@ -239,17 +239,17 @@ class MainWindow(QtWidgets.QMainWindow):
     def export_json(self):
         if not self._need():
             return
-        p, _ = QtWidgets.QFileDialog.getSaveFileName(self, "Lưu JSON", "ot_report.json", "JSON (*.json)")
+        p, _ = QtWidgets.QFileDialog.getSaveFileName(self, "Save JSON", "ot_report.json", "JSON (*.json)")
         if p:
             to_json(self.result, p)
 
     def export_csv(self):
         if not self._need():
             return
-        d = QtWidgets.QFileDialog.getExistingDirectory(self, "Chọn thư mục lưu CSV")
+        d = QtWidgets.QFileDialog.getExistingDirectory(self, "Choose folder for CSV files")
         if d:
             to_csv(self.result, d)
-            QtWidgets.QMessageBox.information(self, "OTInspect", f"Đã lưu files/assets/findings.csv vào {d}")
+            QtWidgets.QMessageBox.information(self, "OTInspect", f"Saved files/assets/findings.csv to {d}")
 
 
 def main() -> int:

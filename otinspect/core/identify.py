@@ -1,7 +1,7 @@
-"""Nhận dạng loại file: magic bytes + đuôi file + kiểm tra nội dung.
+"""File identification: magic bytes + extension + content checks.
 
-Không phụ thuộc python-magic (khó cài trên Windows / máy air-gapped);
-nếu có thì dùng thêm để lấy MIME tham khảo.
+No dependency on python-magic (hard to install on Windows / air-gapped hosts);
+if present it is used for a reference MIME type.
 """
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ import os
 import re
 from dataclasses import dataclass
 
-try:  # tùy chọn
+try:  # optional
     import magic as _magic  # type: ignore
 except Exception:  # pragma: no cover
     _magic = None
@@ -18,8 +18,8 @@ except Exception:  # pragma: no cover
 HEAD_SIZE = 4096
 
 MAGIC_SIGNATURES: list[tuple[bytes, int, str, str]] = [
-    # (signature, offset, category, mô tả)
-    (b"PK\x03\x04", 0, "Archive", "ZIP archive (có thể là TIA .zap / .ap / docx...)"),
+    # (signature, offset, category, description)
+    (b"PK\x03\x04", 0, "Archive", "ZIP archive (may be TIA .zap / .ap / docx...)"),
     (b"7z\xbc\xaf\x27\x1c", 0, "Archive", "7-Zip archive"),
     (b"Rar!\x1a\x07", 0, "Archive", "RAR archive"),
     (b"\x1f\x8b", 0, "Archive", "GZIP"),
@@ -28,16 +28,16 @@ MAGIC_SIGNATURES: list[tuple[bytes, int, str, str]] = [
     (b"\x4d\x3c\xb2\xa1", 0, "PCAP", "PCAP nanosecond"),
     (b"\x0a\x0d\x0d\x0a", 0, "PCAP", "PCAPNG"),
     (b"ElfFile\x00", 0, "EventLog", "Windows EVTX"),
-    (b"\x7fELF", 0, "Executable", "ELF binary (Linux / firmware nhúng)"),
+    (b"\x7fELF", 0, "Executable", "ELF binary (Linux / embedded firmware)"),
     (b"MZ", 0, "Executable", "Windows PE (exe/dll)"),
     (b"%PDF", 0, "Document", "PDF"),
-    (b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1", 0, "OLE", "OLE2 compound (xls/doc cũ, Rockwell .ACD, project cũ)"),
+    (b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1", 0, "OLE", "OLE2 compound (legacy xls/doc, Rockwell .ACD, legacy projects)"),
     (b"SQLite format 3\x00", 0, "Database", "SQLite database"),
     (b"hsqs", 0, "Firmware", "SquashFS filesystem (firmware)"),
     (b"\x27\x05\x19\x56", 0, "Firmware", "U-Boot uImage (firmware)"),
 ]
 
-# Đuôi file đặc thù OT -> (category, mô tả)
+# OT-specific extensions -> (category, description)
 EXTENSION_MAP: dict[str, tuple[str, str]] = {
     # IEC 61850 SCL
     ".scd": ("SCL", "IEC 61850 Substation Configuration Description"),
@@ -46,15 +46,15 @@ EXTENSION_MAP: dict[str, tuple[str, str]] = {
     ".iid": ("SCL", "IEC 61850 Instantiated IED Description"),
     ".ssd": ("SCL", "IEC 61850 System Specification Description"),
     ".sed": ("SCL", "IEC 61850 System Exchange Description"),
-    # COMTRADE (parser ở giai đoạn 2)
-    ".cfg": ("COMTRADE", "COMTRADE config (IEEE C37.111) hoặc file cấu hình"),
+    # COMTRADE
+    ".cfg": ("COMTRADE", "COMTRADE config (IEEE C37.111) or config file"),
     ".dat": ("COMTRADE", "COMTRADE data"),
     ".hdr": ("COMTRADE", "COMTRADE header"),
     ".inf": ("COMTRADE", "COMTRADE info"),
     # PLC
     ".l5x": ("PLC", "Rockwell Logix Designer XML export"),
     ".l5k": ("PLC", "Rockwell Logix Designer ASCII export"),
-    ".acd": ("PLC", "Rockwell Logix Designer project (đóng)"),
+    ".acd": ("PLC", "Rockwell Logix Designer project (proprietary)"),
     ".rss": ("PLC", "Rockwell RSLogix 500 project"),
     ".s7p": ("PLC", "Siemens STEP 7 Classic project"),
     ".xef": ("PLC", "Schneider Unity/EcoStruxure XML export"),
@@ -66,6 +66,7 @@ EXTENSION_MAP: dict[str, tuple[str, str]] = {
     ".gsd": ("DeviceDesc", "PROFIBUS GSD"),
     ".gse": ("DeviceDesc", "PROFIBUS GSD"),
     ".eds": ("DeviceDesc", "EtherNet/IP / CANopen EDS"),
+    ".gsdml": ("DeviceDesc", "PROFINET GSDML"),
     # HMI / SCADA
     ".mcp": ("HMI", "Siemens WinCC project"),
     ".med": ("HMI", "FactoryTalk View ME project"),
@@ -89,7 +90,7 @@ EXTENSION_MAP: dict[str, tuple[str, str]] = {
 # Siemens TIA Portal: .ap13 ... .ap20, .zap13 ...
 _TIA_RE = re.compile(r"^\.(z?ap)(\d{2})$")
 
-# Namespace / root element XML -> (category, mô tả)
+# Namespace / root element XML -> (category, description)
 XML_SIGNATURES: list[tuple[str, str, str]] = [
     ("iec.ch/61850", "SCL", "IEC 61850 SCL"),
     ("<scl", "SCL", "IEC 61850 SCL"),
@@ -162,19 +163,19 @@ def identify(path: str, head: bytes | None = None) -> Identity:
     text = looks_text(head)
     ent = round(shannon_entropy(head), 3)
 
-    # 1. Nội dung XML: chính xác hơn đuôi file
+    # 1. XML content: more reliable than the extension
     if text:
         low = decode_head(head).lower()
         if "<?xml" in low[:200] or low.lstrip().startswith("<"):
             for needle, cat, desc in XML_SIGNATURES:
                 if needle in low:
                     return Identity(cat, desc, mime, True, ent)
-        # COMTRADE .cfg: dòng 1 = "station,device[,rev_year]", dòng 2 = "N,nnA,nnD"
+        # COMTRADE .cfg: line 1 = "station,device[,rev_year]", line 2 = "N,nnA,nnD"
         if ext == ".cfg":
             lines = low.splitlines()
             if len(lines) > 1 and re.match(r"^\s*\d+\s*,\s*\d+a\s*,\s*\d+d\s*$", lines[1]):
                 return Identity("COMTRADE", "COMTRADE config (IEEE C37.111)", mime, True, ent)
-            return Identity("Config", "File cấu hình văn bản", mime, True, ent)
+            return Identity("Config", "Text configuration file", mime, True, ent)
         if ext == ".hex" and low.startswith(":"):
             return Identity("Firmware", "Intel HEX image", mime, True, ent)
         if ext in (".srec", ".s19") and low.startswith("s0"):
@@ -188,7 +189,7 @@ def identify(path: str, head: bytes | None = None) -> Identity:
                 return Identity("PLC", f"Siemens TIA Portal V{m.group(2)} {'archive' if m.group(1) == 'zap' else 'project'}", mime, False, ent)
             return Identity(cat, desc, mime, False, ent)
 
-    # 3. Đuôi file
+    # 3. Extension
     m = _TIA_RE.match(ext)
     if m:
         return Identity("PLC", f"Siemens TIA Portal V{m.group(2)} project", mime, text, ent)
@@ -204,8 +205,8 @@ def identify(path: str, head: bytes | None = None) -> Identity:
         if low.lstrip().startswith("<"):
             return Identity("XML", "XML chung", mime, True, ent)
         if re.search(r"\d{4}-\d{2}-\d{2}[ t]\d{2}:\d{2}|\b(error|warn|alarm|fault)\b", low):
-            return Identity("Log", "Văn bản dạng log", mime, True, ent)
-        return Identity("Text", "Văn bản", mime, True, ent)
+            return Identity("Log", "Log-like text", mime, True, ent)
+        return Identity("Text", "Text", mime, True, ent)
     if ent > 7.5:
-        return Identity("Binary", "Nhị phân entropy cao (nén/mã hóa)", mime, False, ent)
-    return Identity("Binary", "Nhị phân không xác định", mime, False, ent)
+        return Identity("Binary", "High-entropy binary (compressed/encrypted)", mime, False, ent)
+    return Identity("Binary", "Unknown binary", mime, False, ent)

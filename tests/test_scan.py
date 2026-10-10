@@ -67,3 +67,20 @@ def test_zip_and_exports():
     to_html(res, os.path.join(out, "r.html"))
     to_csv(res, out)
     assert os.path.getsize(os.path.join(out, "r.html")) > 1000
+
+
+def test_phase2_parsers():
+    res = scan(SAMPLES)
+    by = {os.path.basename(f.path): f for f in res.files}
+    c = by["fault_q01.cfg"]
+    assert c.parser == "comtrade" and c.summary["analog_channels"] == 3 and c.summary["duration_s"] == 0.2
+    assert not any(f.rule == "CMT-DAT-SIZE" for f in c.findings)
+    p = by["station_bus.pcap"]
+    assert p.summary["protocols"]["GOOSE"] == 10 and p.summary["protocols"]["Modbus/TCP"] == 5
+    assert p.summary["goose_streams"][0]["gocbRef"].endswith("GoTrip")
+    rules = {f.rule for f in res.findings}
+    assert {"PCAP-GOOSE-APPID-DUP", "PCAP-MODBUS-WRITE", "PCAP-CLEARTEXT-ADMIN",
+            "L5X-PASSWORD-TAG", "XREF-UNDOCUMENTED-HOST"} <= rules
+    plc = [a for a in res.assets if a.kind == "PLC"][0]
+    assert plc.model == "1756-L83E" and plc.ip == "10.10.2.20" and plc.version == "33.11"
+    assert by["powerflex755.eds"].summary["product"] == "PowerFlex 755"

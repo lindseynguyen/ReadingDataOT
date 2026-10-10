@@ -1,4 +1,4 @@
-"""Quét file/thư mục: đệ quy, hash, nhận dạng, gọi parser, chạy song song."""
+"""Scan files/folders: recursion, hashing, identification, parser dispatch, parallelism."""
 from __future__ import annotations
 
 import hashlib
@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Callable, Iterable
 
 from .identify import identify, read_head
-from .model import FileRecord, ScanResult
+from .model import FileRecord, Finding, ScanResult
 from .registry import find_parser, load_builtin
 
 SKIP_DIRS = {".git", "__pycache__", "node_modules", ".svn"}
@@ -59,7 +59,7 @@ def analyze_file(path: str, display_path: str | None = None) -> FileRecord:
             rec.parser = parser.name
             try:
                 parser.parse(path, rec)
-            except Exception as e:  # parser lỗi không làm hỏng cả lần quét
+            except Exception as e:  # a failing parser must not break the whole scan
                 rec.error = f"{parser.name}: {type(e).__name__}: {e}"
         return rec
     except OSError as e:
@@ -77,4 +77,30 @@ def scan(root: str, recursive: bool = True, workers: int = 4,
             result.files.append(rec)
             if progress:
                 progress(i, total, rec.path)
+    correlate(result)
     return result
+
+
+def correlate(result: ScanResult) -> None:
+    """Cross-check observed traffic (PCAP hosts) against documented assets
+    (SCL, PLC exports...). Undocumented hosts are a classic OT inventory gap."""
+    documented: dict[str, str] = {}
+    for f in result.files:
+        if f.category == "PCAP":
+            continue
+        for a in f.assets:
+            if a.ip:
+                documented.setdefault(a.ip, a.name)
+    if not documented:
+        return
+    for f in result.files:
+        if f.category != "PCAP":
+            continue
+        for a in f.assets:
+            if a.ip in documented:
+                a.extra["documented_as"] = documented[a.ip]
+            elif a.extra.get("serves"):
+                f.findings.append(Finding(
+                    "medium", "XREF-UNDOCUMENTED-HOST",
+                    f"{a.ip} serves {', '.join(a.extra['serves'])} on the wire but appears in no configuration file",
+                    f.path, a.ip))

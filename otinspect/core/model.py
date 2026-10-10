@@ -6,7 +6,7 @@ from typing import Any
 
 @dataclass
 class Asset:
-    """Thiết bị/tài sản OT tìm thấy trong file (IED, PLC, HMI...)."""
+    """OT asset discovered in a file (IED, PLC, HMI...)."""
     name: str
     kind: str = "unknown"            # IED, PLC, HMI, Switch...
     vendor: str = ""
@@ -16,13 +16,13 @@ class Asset:
     mac: str = ""
     subnet: str = ""
     protocols: list[str] = field(default_factory=list)
-    source: str = ""                 # file chứa thông tin
+    source: str = ""                 # file the information came from
     extra: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class Finding:
-    """Phát hiện rủi ro bảo mật / cấu hình."""
+    """Security / configuration finding."""
     severity: str                    # high | medium | low | info
     rule: str
     message: str
@@ -36,7 +36,7 @@ class FileRecord:
     size: int
     sha256: str
     category: str = "Unknown"        # SCL, Log, Firmware, Archive...
-    file_type: str = ""              # mô tả chi tiết
+    file_type: str = ""              # detailed description
     parser: str = ""
     summary: dict[str, Any] = field(default_factory=dict)
     assets: list[Asset] = field(default_factory=list)

@@ -1,5 +1,5 @@
-"""Xuất báo cáo JSON / CSV / HTML (HTML tự chứa, mở được offline, in ra PDF
-bằng trình duyệt -> không cần font ngoài như bản cũ)."""
+"""JSON / CSV / HTML reports (self-contained HTML that opens offline; print to PDF
+from a browser, so no external font is needed as in the old version)."""
 from __future__ import annotations
 
 import csv
@@ -77,12 +77,24 @@ def to_html(res: ScanResult, path: str) -> None:
                            f"<td class=m>{_e(g['APPID'])}</td><td class=m>{_e(g['MAC'])}</td>"
                            f"<td class=m>{_e(g['VLAN'])}</td><td>{_e(g['dataSet'])}</td></tr>")
 
+    proto_rows = ""
+    cmt_rows = ""
+    for f in res.files:
+        sm = f.summary if isinstance(f.summary, dict) else {}
+        if f.category == "PCAP":
+            for k, v in sm.get("protocols", {}).items():
+                proto_rows += f"<tr><td>{_e(k)}</td><td class=n>{v}</td><td class=s>{_e(os.path.basename(f.path))}</td></tr>"
+        if f.parser == "comtrade":
+            cmt_rows += (f"<tr><td>{_e(sm.get('station'))}</td><td>{_e(sm.get('recording_device'))}</td>"
+                         f"<td class=m>{_e(sm.get('trigger_time'))}</td><td class=n>{sm.get('analog_channels')}A / {sm.get('digital_channels')}D</td>"
+                         f"<td class=n>{_e(sm.get('duration_s'))} s</td><td class=s>{_e(os.path.basename(f.path))}</td></tr>")
+
     file_rows = "".join(
         f"<tr><td class=s>{_e(f.path)}</td><td>{_e(f.category)}</td><td>{_e(f.file_type)}</td>"
         f"<td class=n>{_human(f.size)}</td><td class='m h'>{_e(f.sha256[:16])}</td>"
         f"<td class=err>{_e(f.error)}</td></tr>" for f in res.files)
 
-    doc = f"""<!doctype html><html lang=vi><head><meta charset=utf-8>
+    doc = f"""<!doctype html><html lang=en><head><meta charset=utf-8>
 <meta name=viewport content="width=device-width,initial-scale=1">
 <title>OTInspect Report</title><style>
 :root{{--bg:#fafaf7;--fg:#1d2329;--mut:#66707a;--line:#e2e2dc;--card:#fff;--acc:#0f6b5c}}
@@ -99,16 +111,18 @@ th{{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut
 .medium{{background:#fbe7c6;color:#7a4b00}} .low{{background:#dde9f7;color:#1c4a7a}} .info{{background:#e6e6e1;color:#444}}
 @media print{{body{{background:#fff;color:#000}} .wrap{{overflow:visible}}}}
 </style></head><body><main>
-<h1>Báo cáo kiểm kê OT</h1><div class=mut>Thư mục: {_e(res.root)} · Tạo lúc {now} · OTInspect</div>
+<h1>OT Inventory Report</h1><div class=mut>Root: {_e(res.root)} · Generated {now} · OTInspect</div>
 <div class=cards>
-<div class=card><b>{len(res.files)}</b>file</div><div class=card><b>{len(res.assets)}</b>thiết bị</div>
-<div class=card><b>{sev_count['high']}</b>rủi ro cao</div><div class=card><b>{sev_count['medium']}</b>rủi ro trung bình</div>
-<div class=card><b>{sev_count['low'] + sev_count['info']}</b>thấp / thông tin</div></div>
-<h2>Thiết bị (Asset inventory)</h2><div class=wrap><table><tr><th>Tên</th><th>Loại</th><th>Hãng</th><th>Model</th><th>Version</th><th>IP</th><th>MAC</th><th>Giao thức</th><th>Nguồn</th></tr>{asset_rows or '<tr><td colspan=9 class=mut>Không có</td></tr>'}</table></div>
-<h2>Phát hiện rủi ro</h2><div class=wrap><table><tr><th>Mức</th><th>Rule</th><th>Mô tả</th><th>Nguồn</th></tr>{find_rows or '<tr><td colspan=4 class=mut>Không có</td></tr>'}</table></div>
+<div class=card><b>{len(res.files)}</b>files</div><div class=card><b>{len(res.assets)}</b>assets</div>
+<div class=card><b>{sev_count['high']}</b>high findings</div><div class=card><b>{sev_count['medium']}</b>medium findings</div>
+<div class=card><b>{sev_count['low'] + sev_count['info']}</b>low / info</div></div>
+<h2>Asset inventory</h2><div class=wrap><table><tr><th>Name</th><th>Kind</th><th>Vendor</th><th>Model</th><th>Version</th><th>IP</th><th>MAC</th><th>Protocols</th><th>Source</th></tr>{asset_rows or '<tr><td colspan=9 class=mut>None</td></tr>'}</table></div>
+<h2>Findings</h2><div class=wrap><table><tr><th>Severity</th><th>Rule</th><th>Message</th><th>Source</th></tr>{find_rows or '<tr><td colspan=4 class=mut>None</td></tr>'}</table></div>
 {'<h2>GOOSE</h2><div class=wrap><table><tr><th>IED</th><th>Control block</th><th>APPID</th><th>MAC</th><th>VLAN</th><th>DataSet</th></tr>' + goose_rows + '</table></div>' if goose_rows else ''}
-<h2>Phân loại file</h2><div class=wrap><table><tr><th>Loại</th><th class=n>Số file</th></tr>{stat_rows}</table></div>
-<h2>Danh sách file</h2><div class=wrap><table><tr><th>Đường dẫn</th><th>Loại</th><th>Mô tả</th><th class=n>Kích thước</th><th>SHA-256</th><th>Lỗi</th></tr>{file_rows}</table></div>
+{'<h2>Protocols observed in captures</h2><div class=wrap><table><tr><th>Protocol</th><th class=n>Packets</th><th>Capture</th></tr>' + proto_rows + '</table></div>' if proto_rows else ''}
+{'<h2>Disturbance records (COMTRADE)</h2><div class=wrap><table><tr><th>Station</th><th>Device</th><th>Trigger</th><th class=n>Channels</th><th class=n>Length</th><th>File</th></tr>' + cmt_rows + '</table></div>' if cmt_rows else ''}
+<h2>File categories</h2><div class=wrap><table><tr><th>Category</th><th class=n>Files</th></tr>{stat_rows}</table></div>
+<h2>All files</h2><div class=wrap><table><tr><th>Path</th><th>Category</th><th>Description</th><th class=n>Size</th><th>SHA-256</th><th>Error</th></tr>{file_rows}</table></div>
 </main></body></html>"""
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(doc)

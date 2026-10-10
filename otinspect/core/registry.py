@@ -1,5 +1,5 @@
-"""Đăng ký parser. Thêm loại file mới = thêm 1 module trong otinspect/parsers
-và gắn decorator @register.
+"""Parser registry. To support a new file type, add a module in otinspect/parsers
+decorated with @register.
 """
 from __future__ import annotations
 
@@ -32,5 +32,6 @@ def find_parser(rec: FileRecord, ident: Identity) -> Parser | None:
 
 
 def load_builtin() -> None:
-    # import để chạy decorator @register (thứ tự = độ ưu tiên)
-    from ..parsers import scl, logfile, archive, binary  # noqa: F401
+    # import to run the @register decorators (order = priority)
+    from ..parsers import (scl, comtrade, pcap, plc_l5x, devicedesc,  # noqa: F401
+                           logfile, archive, binary)
