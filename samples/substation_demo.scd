@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Synthetic sample for testing, not a real substation configuration -->
 <SCL xmlns="http://www.iec.ch/61850/2003/SCL" version="2007" revision="B" release="4">
-  <Header id="TBA_DEMO_110kV" version="1.2" revision="A" toolID="DemoTool"/>
-  <Substation name="TBA_DEMO">
+  <Header id="SUBSTATION_DEMO_110kV" version="1.2" revision="A" toolID="DemoTool"/>
+  <Substation name="SUBSTATION_DEMO">
     <VoltageLevel name="E1">
       <Voltage unit="V" multiplier="k">110</Voltage>
       <Bay name="Q01"/><Bay name="Q02"/><Bay name="Q03"/>

@@ -10,7 +10,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 def comtrade():
-    cfg = """TBA_DEMO,F87T_Q01,1999
+    cfg = """SUBSTATION_DEMO,F87T_Q01,1999
 5,3A,2D
 1,IA,A,,A,0.01,0,0,-32767,32767,1200,1,P
 2,IB,B,,A,0.01,0,0,-32767,32767,1200,1,P
