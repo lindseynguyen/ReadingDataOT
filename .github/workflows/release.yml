@@ -44,32 +44,8 @@ jobs:
       - name: Build
         run: pyinstaller packaging/otinspect.spec --noconfirm --clean
 
-      - name: Smoke test CLI exe
-        shell: pwsh
-        run: |
-          .\dist\otinspect-cli.exe --version
-          .\dist\otinspect-cli.exe scan samples -q --json smoke.json --html smoke.html
-          if ($LASTEXITCODE -ne 0) { throw "scan failed" }
-          $r = Get-Content smoke.json -Raw | ConvertFrom-Json
-          $assets = ($r.files | ForEach-Object { $_.assets.Count } | Measure-Object -Sum).Sum
-          $rules = $r.files | ForEach-Object { $_.findings } | ForEach-Object { $_.rule }
-          Write-Host "files=$($r.files.Count) assets=$assets findings=$($rules.Count)"
-          if ($r.files.Count -lt 10 -or $assets -lt 20) { throw "unexpected scan result" }
-          if (-not ($rules -contains "ASSET-NO-VERSION")) { throw "built-in rules not bundled" }
-          if (-not ($rules -contains "XREF-UNDOCUMENTED-HOST")) { throw "cross-reference missing" }
-          .\dist\otinspect-cli.exe diff samples\substation_demo.scd samples\substation_demo_v2.scd --fail-on high
-          if ($LASTEXITCODE -ne 2) { throw "diff exit code should be 2, got $LASTEXITCODE" }
-          $global:LASTEXITCODE = 0
-
-      - name: Smoke test GUI exe
-        shell: pwsh
-        run: |
-          $env:QT_QPA_PLATFORM = "offscreen"
-          $p = Start-Process .\dist\OTInspect.exe -PassThru
-          Start-Sleep -Seconds 15
-          if ($p.HasExited) { throw "GUI exited early with code $($p.ExitCode)" }
-          Stop-Process -Id $p.Id
-          Write-Host "GUI started and stayed up"
+      - name: Smoke test executables
+        run: python packaging/smoke_test.py dist
 
       - name: Package
         shell: pwsh

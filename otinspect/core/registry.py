@@ -31,7 +31,12 @@ def find_parser(rec: FileRecord, ident: Identity) -> Parser | None:
     return None
 
 
+BUILTIN_PARSERS = ("scl", "comtrade", "pcap", "plc_l5x", "plc_iec", "devicedesc",
+                   "logfile", "archive", "binary")      # order = priority
+
+
 def load_builtin() -> None:
-    # import to run the @register decorators (order = priority)
-    from ..parsers import (scl, comtrade, pcap, plc_l5x, plc_iec, devicedesc,  # noqa: F401
-                           logfile, archive, binary)
+    """Import the built-in parser modules so their @register decorators run."""
+    import importlib
+    for name in BUILTIN_PARSERS:
+        importlib.import_module(f"{__package__.rsplit('.', 1)[0]}.parsers.{name}")
