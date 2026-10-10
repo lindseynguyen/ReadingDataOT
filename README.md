@@ -4,6 +4,42 @@ File inventory and analysis for OT/ICS environments. Point it at a folder (a sub
 
 It only **reads files**. It never connects to devices.
 
+> **Status: beta.** Tested on synthetic samples, fuzzed and hostile inputs, Windows and Linux. Real-world files from more vendors are the next validation step; please open an issue if a file is misidentified or parsed wrongly.
+
+![OTInspect HTML report: summary cards and network map](docs/images/report-overview.png)
+
+## Screenshots
+
+| Desktop app | Command line |
+|---|---|
+| ![Findings tab in the desktop app](docs/images/gui-findings.png) | ![otinspect scan output](docs/images/cli-scan.png) |
+| *Findings sorted by severity, with details for the selected row* | *Scan summary and findings in a terminal* |
+
+<details>
+<summary>More screenshots: findings table, SCD diff, asset inventory, dark mode</summary>
+
+**Findings in the HTML report**, including offline advisory matches
+
+![Findings table](docs/images/report-findings.png)
+
+**SCD diff** between two revisions of a substation configuration
+
+![SCD diff report](docs/images/scd-diff.png)
+
+![otinspect diff in a terminal](docs/images/cli-diff.png)
+
+**Asset inventory** in the desktop app
+
+![Assets tab](docs/images/gui-assets.png)
+
+**Dark mode** (follows the system setting)
+
+![Report in dark mode](docs/images/report-dark.png)
+
+</details>
+
+All screenshots use the fabricated data in `samples/`.
+
 ## Download (Windows)
 
 Get `OTInspect-<version>-windows-x64.zip` from the [Releases](https://github.com/lindseynguyen/ReadingDataOT/releases) page. It contains two portable executables, no installation or Python required:
@@ -61,6 +97,8 @@ It lists added/removed/modified IEDs, addresses, logical devices and nodes, Data
 - `DIFF-HEADER-NOT-BUMPED`: content changed but the SCL Header version/revision did not
 
 ## Network map
+
+![Network map](docs/images/network-map.png)
 
 The HTML report draws every asset with an IP, grouped by SCL SubNetwork or /24. Devices with high findings have a red border, duplicate IPs are marked, and hosts that appear only in captures (undocumented) have a dashed orange border.
 
