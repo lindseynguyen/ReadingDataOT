@@ -1,0 +1,7 @@
+2026-09-01 08:00:01 INFO  Gateway started, IEC104 server listening on 0.0.0.0:2404
+2026-09-01 08:00:05 INFO  Connected to IED F87T_Q01 at 10.10.1.11 (MMS)
+2026-09-01 08:03:12 WARN  Timeout reading BCU_Q03 10.10.1.13, retry 1
+2026-09-01 08:03:20 ERROR Connection failed to BCU_Q03 10.10.1.13
+2026-09-01 09:15:44 ALARM Breaker Q02 trip received from F21_Q02
+2026-09-01 10:00:00 INFO  User admin logged in from 10.20.0.50
+2026-09-01 10:00:02 INFO  snmp-server community public RO
