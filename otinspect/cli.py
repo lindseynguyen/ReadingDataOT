@@ -1,17 +1,19 @@
 """Headless CLI (suited to air-gapped workstations / jump hosts).
 
 Examples:
-    python -m otinspect scan D:\\Substation_A --html report.html --json report.json
-    python -m otinspect scan ./samples --csv out/ -q
+    otinspect scan D:\\Substation_A --html report.html --json report.json
+    otinspect scan ./samples --csv out/ -q --fail-on high
+    otinspect diff old.scd new.scd --html diff.html
+    otinspect advisories import csaf_files/OT/white -o advisories.json
 """
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 
 from . import __version__
-from .core.scanner import scan
-from .report.export import SEV_ORDER, to_csv, to_html, to_json
+from .report.export import SEV_ORDER, diff_to_html, to_csv, to_html, to_json
 
 
 def _print_summary(res) -> None:
@@ -33,12 +35,32 @@ def _print_summary(res) -> None:
         print(f"\nParse errors ({len(errs)}):")
         for f in errs:
             print(f"  {f.path}: {f.error}")
+    for w in res.warnings:
+        print(f"Warning: {w}", file=sys.stderr)
+
+
+def _fail(findings, level) -> bool:
+    if not level:
+        return False
+    lim = SEV_ORDER[level]
+    return any(SEV_ORDER.get(x.severity, 9) <= lim for x in findings)
+
+
+def _safe_console() -> None:
+    """Windows consoles/pipes may use cp1252; never crash on Unicode paths or names."""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(errors="replace")
+        except (AttributeError, ValueError):
+            pass
 
 
 def main(argv: list[str] | None = None) -> int:
+    _safe_console()
     ap = argparse.ArgumentParser(prog="otinspect", description="Inventory and analyze OT/ICS files")
     ap.add_argument("--version", action="version", version=__version__)
     sub = ap.add_subparsers(dest="cmd", required=True)
+
     s = sub.add_parser("scan", help="Scan a file or directory")
     s.add_argument("path")
     s.add_argument("--no-recursive", action="store_true", help="Do not descend into subdirectories")
@@ -46,34 +68,81 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--json", help="Write JSON report")
     s.add_argument("--html", help="Write HTML report (print to PDF from a browser)")
     s.add_argument("--csv", help="Directory for files.csv / assets.csv / findings.csv")
+    s.add_argument("--rules", action="append", default=[], help="Extra rule file or folder (YAML/JSON); repeatable")
+    s.add_argument("--no-builtin-rules", action="store_true")
+    s.add_argument("--advisories", help="Advisory DB built with 'advisories import' (or set OTINSPECT_ADVISORIES)")
     s.add_argument("-q", "--quiet", action="store_true")
     s.add_argument("--fail-on", choices=["high", "medium", "low"],
                    help="Exit with code 2 if any finding is at or above this severity (for CI / scheduled checks)")
-    a = ap.parse_args(argv)
+
+    d = sub.add_parser("diff", help="Compare two SCL files (e.g. SCD revisions)")
+    d.add_argument("old")
+    d.add_argument("new")
+    d.add_argument("--html")
+    d.add_argument("--json")
+    d.add_argument("--fail-on", choices=["high", "medium", "low"])
+
+    a = sub.add_parser("advisories", help="Manage the offline advisory database")
+    asub = a.add_subparsers(dest="acmd", required=True)
+    ai = asub.add_parser("import", help="Import CSAF 2.0 advisory JSON files or folders")
+    ai.add_argument("paths", nargs="+")
+    ai.add_argument("-o", "--output", default="advisories.json")
+
+    sub.add_parser("gui", help="Start the graphical interface")
+    args = ap.parse_args(argv)
+
+    if args.cmd == "gui":
+        from .gui.app import main as gui_main
+        return gui_main()
+
+    if args.cmd == "advisories":
+        from .rules.advisories import import_csaf, save_db
+        entries, n, errors = import_csaf(args.paths)
+        save_db(entries, args.output)
+        for e in errors[:20]:
+            print(f"Warning: {e}", file=sys.stderr)
+        print(f"Imported {n} advisories ({len(entries)} product/version entries) -> {args.output}")
+        return 0 if n else 1
+
+    if args.cmd == "diff":
+        from .diff import diff_scl, diff_text
+        try:
+            res = diff_scl(args.old, args.new)
+        except (ValueError, OSError) as e:
+            print(f"Error: {e}", file=sys.stderr)
+            return 1
+        print(diff_text(res))
+        if args.html:
+            diff_to_html(res, args.html)
+            print(f"HTML: {args.html}")
+        if args.json:
+            with open(args.json, "w", encoding="utf-8") as fh:
+                json.dump(res.to_dict(), fh, ensure_ascii=False, indent=2)
+            print(f"JSON: {args.json}")
+        return 2 if _fail(res.findings, args.fail_on) else 0
+
+    from .core.scanner import scan
 
     def prog(i, n, p):
-        if not a.quiet:
+        if not args.quiet:
             sys.stderr.write(f"\r[{i}/{n}] {p[-70:]:<70}")
             sys.stderr.flush()
 
-    res = scan(a.path, recursive=not a.no_recursive, workers=a.workers, progress=prog)
-    if not a.quiet:
+    res = scan(args.path, recursive=not args.no_recursive, workers=args.workers, progress=prog,
+               rules=args.rules, builtin_rules=not args.no_builtin_rules, advisories=args.advisories)
+    if not args.quiet:
         sys.stderr.write("\n")
         _print_summary(res)
-    if a.json:
-        to_json(res, a.json)
-        print(f"JSON: {a.json}")
-    if a.html:
-        to_html(res, a.html)
-        print(f"HTML: {a.html}")
-    if a.csv:
-        for p in to_csv(res, a.csv):
+    if args.json:
+        to_json(res, args.json)
+        print(f"JSON: {args.json}")
+    if args.html:
+        to_html(res, args.html)
+        print(f"HTML: {args.html}")
+    if args.csv:
+        for p in to_csv(res, args.csv):
             print(f"CSV:  {p}")
-    if a.fail_on:
-        lim = SEV_ORDER[a.fail_on]
-        if any(SEV_ORDER.get(x.severity, 9) <= lim for x in res.findings):
-            return 2
-    return 0
+    return 2 if _fail(res.findings, args.fail_on) else 0
 
 
 if __name__ == "__main__":

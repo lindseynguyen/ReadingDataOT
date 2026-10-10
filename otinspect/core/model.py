@@ -51,6 +51,7 @@ class FileRecord:
 class ScanResult:
     root: str
     files: list[FileRecord] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
     @property
     def assets(self) -> list[Asset]:
@@ -70,5 +71,6 @@ class ScanResult:
         return {
             "root": self.root,
             "stats": self.stats(),
+            "warnings": self.warnings,
             "files": [f.to_dict() for f in self.files],
         }

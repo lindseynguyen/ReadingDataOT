@@ -7,6 +7,7 @@ protocols and Modbus write activity.
 """
 from __future__ import annotations
 
+import mmap
 import struct
 from collections import Counter, defaultdict
 
@@ -128,7 +129,15 @@ class PcapParser:
 
     def parse(self, path: str, rec: FileRecord) -> None:
         with open(path, "rb") as fh:
-            data = fh.read()
+            if rec.size == 0:
+                return
+            data = mmap.mmap(fh.fileno(), 0, access=mmap.ACCESS_READ)   # no full read for multi-GB captures
+            try:
+                self._parse(data, rec)
+            finally:
+                data.close()
+
+    def _parse(self, data, rec: FileRecord) -> None:
         if data[:4] == b"\x0a\x0d\x0d\x0a":
             packets = _iter_pcapng(data)
             fmt = "pcapng"

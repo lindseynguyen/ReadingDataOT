@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "otinspect"
+dynamic = ["version"]
+description = "Offline inventory and risk analysis of OT/ICS files: IEC 61850 SCL, COMTRADE, PCAP, PLC exports, firmware"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.9"
+keywords = ["ics", "ot", "scada", "iec61850", "scl", "comtrade", "pcap", "plc", "security", "inventory"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Topic :: Security",
+  "Intended Audience :: Information Technology",
+]
+dependencies = ["defusedxml>=0.7", "pyyaml>=6"]
+
+[project.optional-dependencies]
+gui = ["PyQt5>=5.15"]
+dev = ["pytest>=7", "pyflakes"]
+
+[project.urls]
+Homepage = "https://github.com/lindseynguyen/ReadingDataOT"
+Issues = "https://github.com/lindseynguyen/ReadingDataOT/issues"
+
+[project.scripts]
+otinspect = "otinspect.cli:main"
+
+[project.gui-scripts]
+otinspect-gui = "otinspect.gui.app:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "otinspect.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["otinspect*"]
+
+[tool.setuptools.package-data]
+"otinspect.rules" = ["*.json", "*.yaml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

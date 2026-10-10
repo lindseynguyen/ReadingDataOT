@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<FEFExportProject>
+<fileHeader company="Schneider Automation" product="EcoStruxure Control Expert V15.0" dateTime="date_and_time#2026-9-1-8:0:0" content="Project source file" DTDVersion="41"></fileHeader>
+<contentHeader name="WTP_FILTERS" version="0.0.42" dateTime="date_and_time#2026-9-1-8:0:0"></contentHeader>
+<program><identProg name="Main" type="section" task="MAST"></identProg><STSource>Pump1 := StartCmd AND NOT Fault;</STSource></program>
+<program><identProg name="Alarms" type="section" task="MAST"></identProg><LDSource></LDSource></program>
+<program><identProg name="Fast" type="section" task="FAST"></identProg><FBDSource></FBDSource></program>
+<dataBlock>
+<variables name="StartCmd" typeName="BOOL"></variables>
+<variables name="Fault" typeName="BOOL"></variables>
+<variables name="Pump1" typeName="EBOOL"></variables>
+<variables name="Maint_Password" typeName="STRING"></variables>
+</dataBlock>
+</FEFExportProject>

@@ -1,0 +1,60 @@
+{
+  "_comment": "Built-in generic rules (no vendor vulnerability data). User rules may be YAML or JSON; see docs/rules.md.",
+  "rules": [
+    {
+      "id": "ASSET-NO-VERSION",
+      "severity": "info",
+      "target": "asset",
+      "message": "{name} ({kind}) has no firmware/config version recorded",
+      "match": {
+        "kind": {
+          "regex": "^(IED|PLC)$"
+        },
+        "version": {
+          "exists": false
+        }
+      }
+    },
+    {
+      "id": "ASSET-PUBLIC-IP",
+      "severity": "high",
+      "target": "asset",
+      "message": "{name} uses a non-private IP address {ip}",
+      "match": {
+        "ip": {
+          "exists": true,
+          "not_regex": "^(10\\.|192\\.168\\.|172\\.(1[6-9]|2\\d|3[01])\\.|127\\.|169\\.254\\.)"
+        }
+      }
+    },
+    {
+      "id": "FILE-PARSE-ERROR",
+      "severity": "info",
+      "target": "file",
+      "message": "Could not fully parse {path}: {error}",
+      "match": {
+        "error": {
+          "exists": true
+        }
+      }
+    },
+    {
+      "id": "FILE-HIGH-ENTROPY-CONFIG",
+      "severity": "low",
+      "target": "file",
+      "message": "{path} looks encrypted or compressed; its content could not be inventoried",
+      "match": {
+        "category": {
+          "in": [
+            "PLC",
+            "HMI",
+            "IED"
+          ]
+        },
+        "summary.entropy": {
+          "num_ge": 7.5
+        }
+      }
+    }
+  ]
+}

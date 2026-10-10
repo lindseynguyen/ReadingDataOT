@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CAEXFile FileName="Line1.aml" SchemaVersion="2.15" xmlns="http://www.dke.de/CAEX">
+  <SourceDocumentInformation OriginName="TIA Portal Openness" OriginVersion="V17"/>
+  <AdditionalInformation><WriterHeader><WriterName>TIA Portal Openness</WriterName></WriterHeader></AdditionalInformation>
+  <InstanceHierarchy Name="Line1">
+    <InternalElement ID="1" Name="PLC_1">
+      <Attribute Name="TypeIdentifier"><Value>OrderNumber:6ES7 515-2AM02-0AB0/V2.9</Value></Attribute>
+      <Attribute Name="FirmwareVersion"><Value>V2.9</Value></Attribute>
+      <InternalElement ID="2" Name="PROFINET interface_1">
+        <InternalElement ID="3" Name="E1">
+          <Attribute Name="NetworkAddress"><Value>10.30.0.10</Value></Attribute>
+          <Attribute Name="SubnetMask"><Value>255.255.255.0</Value></Attribute>
+        </InternalElement>
+      </InternalElement>
+    </InternalElement>
+    <InternalElement ID="4" Name="HMI_1">
+      <Attribute Name="TypeIdentifier"><Value>OrderNumber:6AV2 124-0MC01-0AX0/17.0.0.0</Value></Attribute>
+      <InternalElement ID="5" Name="X1"><Attribute Name="NetworkAddress"><Value>10.30.0.20</Value></Attribute></InternalElement>
+    </InternalElement>
+    <InternalElement ID="6" Name="ET200SP_1">
+      <Attribute Name="TypeIdentifier"><Value>OrderNumber:6ES7 155-6AU01-0BN0/V4.2</Value></Attribute>
+      <InternalElement ID="7" Name="X1"><Attribute Name="NetworkAddress"><Value>10.30.0.31</Value></Attribute></InternalElement>
+    </InternalElement>
+  </InstanceHierarchy>
+</CAEXFile>

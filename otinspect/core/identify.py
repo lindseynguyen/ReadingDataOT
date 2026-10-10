@@ -57,6 +57,7 @@ EXTENSION_MAP: dict[str, tuple[str, str]] = {
     ".acd": ("PLC", "Rockwell Logix Designer project (proprietary)"),
     ".rss": ("PLC", "Rockwell RSLogix 500 project"),
     ".s7p": ("PLC", "Siemens STEP 7 Classic project"),
+    ".aml": ("PLC", "AutomationML (CAEX) engineering export"),
     ".xef": ("PLC", "Schneider Unity/EcoStruxure XML export"),
     ".stu": ("PLC", "Schneider Unity Pro project"),
     ".sta": ("PLC", "Schneider Unity Pro archive"),
@@ -92,6 +93,7 @@ _TIA_RE = re.compile(r"^\.(z?ap)(\d{2})$")
 
 # Namespace / root element XML -> (category, description)
 XML_SIGNATURES: list[tuple[str, str, str]] = [
+    ("<caexfile", "PLC", "AutomationML (CAEX) engineering export"),
     ("iec.ch/61850", "SCL", "IEC 61850 SCL"),
     ("<scl", "SCL", "IEC 61850 SCL"),
     ("plcopen.org/xml/tc6", "PLC", "PLCopen XML (IEC 61131-3)"),

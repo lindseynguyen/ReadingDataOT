@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-from ..core.identify import Identity, MAGIC_SIGNATURES, shannon_entropy
+from ..core.identify import Identity, shannon_entropy
 from ..core.model import FileRecord, Finding
 from ..core.registry import register
 

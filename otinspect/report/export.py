@@ -9,8 +9,33 @@ import json
 import os
 
 from ..core.model import ScanResult
+from .netmap import build_svg
 
 SEV_ORDER = {"high": 0, "medium": 1, "low": 2, "info": 3}
+
+CSS = """
+:root{--bg:#fafaf7;--fg:#1d2329;--mut:#66707a;--line:#e2e2dc;--card:#fff;--acc:#0f6b5c}
+@media (prefers-color-scheme:dark){:root{--bg:#14181b;--fg:#e4e6e8;--mut:#98a1aa;--line:#2b3238;--card:#1b2024;--acc:#5ec4ae}}
+body{background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,Segoe UI,Roboto,sans-serif;margin:0;padding:24px 16px}
+main{max-width:1200px;margin:auto} h1{margin:0 0 4px;font-size:24px} h2{font-size:17px;margin:32px 0 10px;color:var(--acc)}
+.mut{color:var(--mut)} .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px} .card b{display:block;font-size:24px}
+.wrap{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%} th,td{padding:6px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut)} .n{text-align:right}
+.m{font-family:ui-monospace,Consolas,monospace;font-size:12.5px} .s{font-size:12.5px;word-break:break-all} .err{color:#c0392b;font-size:12px}
+.sev{padding:1px 8px;border-radius:10px;font-size:12px;font-weight:600} .high{background:#f8d7d3;color:#8c1d12}
+.medium{background:#fbe7c6;color:#7a4b00} .low{background:#dde9f7;color:#1c4a7a} .info{background:#e6e6e1;color:#444}
+@media print{body{background:#fff;color:#000} .wrap{overflow:visible}}
+.legend{font-size:12.5px;color:var(--mut);margin:6px 0 0} .legend i{display:inline-block;width:18px;height:10px;border-radius:3px;margin:0 4px 0 12px;vertical-align:middle}
+.add{color:#1e7a3c;font-weight:700} .rem{color:#b3261e;font-weight:700} .mod{color:#8a5a00;font-weight:700}
+"""
+
+
+def _head(title: str) -> str:
+    return (f"<!doctype html><html lang=en><head><meta charset=utf-8>"
+            f"<meta name=viewport content='width=device-width,initial-scale=1'>"
+            f"<title>{html.escape(title)}</title><style>{CSS}</style></head><body><main>")
 
 
 def to_json(res: ScanResult, path: str) -> None:
@@ -94,28 +119,17 @@ def to_html(res: ScanResult, path: str) -> None:
         f"<td class=n>{_human(f.size)}</td><td class='m h'>{_e(f.sha256[:16])}</td>"
         f"<td class=err>{_e(f.error)}</td></tr>" for f in res.files)
 
-    doc = f"""<!doctype html><html lang=en><head><meta charset=utf-8>
-<meta name=viewport content="width=device-width,initial-scale=1">
-<title>OTInspect Report</title><style>
-:root{{--bg:#fafaf7;--fg:#1d2329;--mut:#66707a;--line:#e2e2dc;--card:#fff;--acc:#0f6b5c}}
-@media (prefers-color-scheme:dark){{:root{{--bg:#14181b;--fg:#e4e6e8;--mut:#98a1aa;--line:#2b3238;--card:#1b2024;--acc:#5ec4ae}}}}
-body{{background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,Segoe UI,Roboto,sans-serif;margin:0;padding:24px 16px}}
-main{{max-width:1200px;margin:auto}} h1{{margin:0 0 4px;font-size:24px}} h2{{font-size:17px;margin:32px 0 10px;color:var(--acc)}}
-.mut{{color:var(--mut)}} .cards{{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:18px}}
-.card{{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px}} .card b{{display:block;font-size:24px}}
-.wrap{{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:8px}}
-table{{border-collapse:collapse;width:100%}} th,td{{padding:6px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}}
-th{{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut)}} .n{{text-align:right}}
-.m{{font-family:ui-monospace,Consolas,monospace;font-size:12.5px}} .s{{font-size:12.5px;word-break:break-all}} .err{{color:#c0392b;font-size:12px}}
-.sev{{padding:1px 8px;border-radius:10px;font-size:12px;font-weight:600}} .high{{background:#f8d7d3;color:#8c1d12}}
-.medium{{background:#fbe7c6;color:#7a4b00}} .low{{background:#dde9f7;color:#1c4a7a}} .info{{background:#e6e6e1;color:#444}}
-@media print{{body{{background:#fff;color:#000}} .wrap{{overflow:visible}}}}
-</style></head><body><main>
-<h1>OT Inventory Report</h1><div class=mut>Root: {_e(res.root)} · Generated {now} · OTInspect</div>
+    svg = build_svg(res)
+    netmap = ("<h2>Network map</h2><div class=wrap style='padding:8px'>" + svg + "</div>"
+              "<div class=legend><i style='border:2px solid #c0392b'></i>high finding"
+              "<i style='border:2px dashed #c77700'></i>seen in capture, undocumented"
+              " &nbsp;· hover a box for details</div>") if svg else ""
+    doc = _head("OTInspect Report") + f"""<h1>OT Inventory Report</h1><div class=mut>Root: {_e(res.root)} · Generated {now} · OTInspect</div>
 <div class=cards>
 <div class=card><b>{len(res.files)}</b>files</div><div class=card><b>{len(res.assets)}</b>assets</div>
 <div class=card><b>{sev_count['high']}</b>high findings</div><div class=card><b>{sev_count['medium']}</b>medium findings</div>
 <div class=card><b>{sev_count['low'] + sev_count['info']}</b>low / info</div></div>
+{netmap}
 <h2>Asset inventory</h2><div class=wrap><table><tr><th>Name</th><th>Kind</th><th>Vendor</th><th>Model</th><th>Version</th><th>IP</th><th>MAC</th><th>Protocols</th><th>Source</th></tr>{asset_rows or '<tr><td colspan=9 class=mut>None</td></tr>'}</table></div>
 <h2>Findings</h2><div class=wrap><table><tr><th>Severity</th><th>Rule</th><th>Message</th><th>Source</th></tr>{find_rows or '<tr><td colspan=4 class=mut>None</td></tr>'}</table></div>
 {'<h2>GOOSE</h2><div class=wrap><table><tr><th>IED</th><th>Control block</th><th>APPID</th><th>MAC</th><th>VLAN</th><th>DataSet</th></tr>' + goose_rows + '</table></div>' if goose_rows else ''}
@@ -123,6 +137,28 @@ th{{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut
 {'<h2>Disturbance records (COMTRADE)</h2><div class=wrap><table><tr><th>Station</th><th>Device</th><th>Trigger</th><th class=n>Channels</th><th class=n>Length</th><th>File</th></tr>' + cmt_rows + '</table></div>' if cmt_rows else ''}
 <h2>File categories</h2><div class=wrap><table><tr><th>Category</th><th class=n>Files</th></tr>{stat_rows}</table></div>
 <h2>All files</h2><div class=wrap><table><tr><th>Path</th><th>Category</th><th>Description</th><th class=n>Size</th><th>SHA-256</th><th>Error</th></tr>{file_rows}</table></div>
+</main></body></html>"""
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(doc)
+
+
+def diff_to_html(diff, path: str) -> None:
+    """HTML report for an SCL diff (otinspect.diff.DiffResult)."""
+    now = dt.datetime.now().strftime("%Y-%m-%d %H:%M")
+    sym = {"added": ("+", "add"), "removed": ("-", "rem"), "modified": ("~", "mod")}
+    rows = "".join(
+        f"<tr><td class={sym[c.kind][1]}>{sym[c.kind][0]} {c.kind}</td><td>{_e(c.scope)}</td>"
+        f"<td class=m>{_e(c.key)}</td><td class=s>{_e(c.detail)}</td></tr>" for c in diff.changes)
+    finds = "".join(
+        f"<tr><td><span class='sev {x.severity}'>{_e(x.severity)}</span></td><td class=m>{_e(x.rule)}</td><td>{_e(x.message)}</td></tr>"
+        for x in sorted(diff.findings, key=lambda x: SEV_ORDER.get(x.severity, 9)))
+    c = diff.counts()
+    doc = _head("SCL Diff") + f"""<h1>SCL configuration diff</h1>
+<div class=mut>Old: {_e(diff.old)}<br>New: {_e(diff.new)}<br>Generated {now} · OTInspect</div>
+<div class=cards><div class=card><b>{c.get('added', 0)}</b>added</div><div class=card><b>{c.get('removed', 0)}</b>removed</div>
+<div class=card><b>{c.get('modified', 0)}</b>modified</div><div class=card><b>{len(diff.findings)}</b>findings</div></div>
+<h2>Findings</h2><div class=wrap><table><tr><th>Severity</th><th>Rule</th><th>Message</th></tr>{finds or '<tr><td colspan=3 class=mut>None</td></tr>'}</table></div>
+<h2>Changes</h2><div class=wrap><table><tr><th>Change</th><th>Scope</th><th>Item</th><th>Detail</th></tr>{rows or '<tr><td colspan=4 class=mut>No differences</td></tr>'}</table></div>
 </main></body></html>"""
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(doc)

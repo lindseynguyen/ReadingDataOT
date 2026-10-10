@@ -33,5 +33,5 @@ def find_parser(rec: FileRecord, ident: Identity) -> Parser | None:
 
 def load_builtin() -> None:
     # import to run the @register decorators (order = priority)
-    from ..parsers import (scl, comtrade, pcap, plc_l5x, devicedesc,  # noqa: F401
+    from ..parsers import (scl, comtrade, pcap, plc_l5x, plc_iec, devicedesc,  # noqa: F401
                            logfile, archive, binary)

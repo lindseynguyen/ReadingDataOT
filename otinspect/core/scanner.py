@@ -67,7 +67,8 @@ def analyze_file(path: str, display_path: str | None = None) -> FileRecord:
 
 
 def scan(root: str, recursive: bool = True, workers: int = 4,
-         progress: ProgressCb | None = None) -> ScanResult:
+         progress: ProgressCb | None = None, rules: list[str] | None = None,
+         builtin_rules: bool = True, advisories: str | None = None) -> ScanResult:
     load_builtin()
     paths = list(iter_files(root, recursive))
     result = ScanResult(root=os.path.abspath(root))
@@ -78,6 +79,17 @@ def scan(root: str, recursive: bool = True, workers: int = 4,
             if progress:
                 progress(i, total, rec.path)
     correlate(result)
+    from ..rules import apply_rules, load_rules
+    loaded, warns = load_rules(rules, include_builtin=builtin_rules)
+    result.warnings = warns
+    apply_rules(result, loaded)
+    advisories = advisories or os.environ.get("OTINSPECT_ADVISORIES")
+    if advisories:
+        from ..rules.advisories import load_db, match_assets
+        try:
+            match_assets(result, load_db(advisories))
+        except Exception as e:
+            result.warnings.append(f"advisory DB {advisories}: {e}")
     return result
 
 

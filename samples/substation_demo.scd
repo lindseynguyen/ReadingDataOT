@@ -44,7 +44,10 @@
     <AccessPoint name="S1"><Server><Authentication/>
       <LDevice inst="PROT">
         <LN0 lnClass="LLN0" inst="" lnType="LLN0_T">
-          <DataSet name="dsTrip"/>
+          <DataSet name="dsTrip">
+            <FCDA ldInst="PROT" lnClass="PTRC" lnInst="1" doName="Tr" daName="general" fc="ST"/>
+            <FCDA ldInst="PROT" lnClass="PDIF" lnInst="1" doName="Op" daName="general" fc="ST"/>
+          </DataSet>
           <GSEControl name="GoTrip" appID="F87T_Q01/PROT/GoTrip" datSet="dsTrip" confRev="1"/>
           <ReportControl name="rcbA" datSet="dsTrip"/>
         </LN0>
@@ -62,7 +65,9 @@
     <AccessPoint name="S1"><Server><Authentication/>
       <LDevice inst="PROT">
         <LN0 lnClass="LLN0" inst="" lnType="LLN0_T">
-          <DataSet name="dsTrip"/>
+          <DataSet name="dsTrip">
+            <FCDA ldInst="PROT" lnClass="PTRC" lnInst="1" doName="Tr" daName="general" fc="ST"/>
+          </DataSet>
           <GSEControl name="GoTrip" appID="F21_Q02/PROT/GoTrip" datSet="dsTrip" confRev="3"/>
         </LN0>
         <LN lnClass="PDIS" inst="1" lnType="PDIS_T"/>

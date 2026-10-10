@@ -4,6 +4,15 @@ File inventory and analysis for OT/ICS environments. Point it at a folder (a sub
 
 It only **reads files**. It never connects to devices.
 
+## Download (Windows)
+
+Get `OTInspect-<version>-windows-x64.zip` from the [Releases](https://github.com/lindseynguyen/ReadingDataOT/releases) page. It contains two portable executables, no installation or Python required:
+
+- `OTInspect.exe`: graphical interface (drag a folder onto the window)
+- `otinspect-cli.exe`: command line, for scripts and scheduled checks
+
+Verify the download with `SHA256SUMS.txt`. Windows SmartScreen may warn because the executables are not code-signed; choose *More info → Run anyway* only if the checksum matches.
+
 ## What it understands
 
 | Area | Formats | What you get |
@@ -18,6 +27,10 @@ It only **reads files**. It never connects to devices.
 | **Archives** | ZIP, Siemens TIA `.zapXX` | members identified in place (no extraction), zip-bomb and path-traversal guards |
 | **Identified only** | Siemens TIA/STEP 7, Rockwell `.ACD`, Schneider, CODESYS, ABB PCM600, WinCC, FactoryTalk, EVTX, OPC UA NodeSet, PLCopen XML | category and description |
 
+| **Engineering exports** | AutomationML / CAEX `.aml` (Siemens TIA hardware export), Schneider `.xef`, PLCopen XML | Devices with order numbers, firmware and IPs; application/project info, POUs and sections by language, tasks, variables |
+
+Supported files inside ZIP archives (contractor handover packages, TIA `.zapXX`) are parsed in place.
+
 Identification uses magic bytes, content (XML namespaces, COMTRADE header layout) and extensions; `python-magic` is not required.
 
 ## Risk rules
@@ -28,27 +41,59 @@ Identification uses magic bytes, content (XML namespaces, COMTRADE header layout
 - **Text**: cleartext passwords, SNMP `public`/`private`, private keys
 - **Firmware**: passwd/shadow content, embedded PEM blocks
 - **Cross-reference**: hosts serving OT protocols in a capture that appear in **no** configuration file (`XREF-UNDOCUMENTED-HOST`)
+- **XEF / PLCopen**: credential-like variables
+- **Your own rules** in YAML/JSON: site baselines, approved vendors, minimum firmware, forbidden protocols. See [docs/rules.md](docs/rules.md)
+- **Advisories (offline)**: assets matched against CISA ICS advisories imported from CSAF 2.0 (vendor + product + version range), reported as *possible* matches to verify
 
-## Install
+## SCD diff
+
+Compare two revisions of a substation configuration, typically before accepting an integrator's update:
+
+```bash
+otinspect diff old.scd new.scd --html diff.html --fail-on high
+```
+
+It lists added/removed/modified IEDs, addresses, logical devices and nodes, DataSets and GOOSE/SV control blocks, and flags:
+
+- `DIFF-GOOSE-CONFREV` / `DIFF-SV-CONFREV`: DataSet changed but `confRev` was not incremented, so subscribers may map the wrong signals
+- `DIFF-*-ADDR-CHANGED`: APPID, destination MAC or VLAN changed, so subscribers must be re-configured
+- `DIFF-*-REMOVED`: a publisher disappeared
+- `DIFF-HEADER-NOT-BUMPED`: content changed but the SCL Header version/revision did not
+
+## Network map
+
+The HTML report draws every asset with an IP, grouped by SCL SubNetwork or /24. Devices with high findings have a red border, duplicate IPs are marked, and hosts that appear only in captures (undocumented) have a dashed orange border.
+
+## Install from source
 
 ```bash
 git clone https://github.com/lindseynguyen/ReadingDataOT.git
 cd ReadingDataOT
-pip install -r requirements.txt
+pip install ".[gui]"        # or: pip install -r requirements.txt
 ```
 
-The core and CLI need only Python 3.9+ (standard library). PyQt5 is needed only for the GUI.
+Python 3.9+ is required. PyQt5 is needed only for the GUI.
 
 ## Usage
 
 ```bash
 # GUI
-python data-kiosk.py            # or: python -m otinspect gui
+otinspect gui                   # or: python data-kiosk.py
 
-# CLI
-python -m otinspect scan D:\Substation_Backup --html report.html --json report.json --csv out\
-python -m otinspect scan ./project --fail-on high   # exit code 2 if any high finding (CI / scheduled checks)
+# Scan
+otinspect scan D:\Substation_Backup --html report.html --json report.json --csv out\
+otinspect scan ./project --rules site_rules.yaml --fail-on high   # exit code 2 on any high finding
+
+# Compare two SCD revisions
+otinspect diff old.scd new.scd --html diff.html
+
+# Build the offline advisory DB (on a connected machine), then use it anywhere
+git clone --depth 1 https://github.com/cisagov/CSAF
+otinspect advisories import CSAF/csaf_files/OT/white -o advisories.json
+otinspect scan D:\Backup --advisories advisories.json
 ```
+
+With the Windows release, replace `otinspect` with `otinspect-cli.exe`.
 
 Try it on the bundled synthetic data:
 
@@ -56,11 +101,11 @@ Try it on the bundled synthetic data:
 python -m otinspect scan samples --html demo.html
 ```
 
-`samples/make_samples.py` regenerates the COMTRADE, PCAP, L5X and EDS samples. All sample data is fabricated.
+`samples/make_samples.py` regenerates the samples (including a second SCD revision for `diff`). All sample data is fabricated.
 
 ## Reports
 
-- **HTML**: self-contained and works offline; print to PDF from any browser. Sections: assets, findings, GOOSE, observed protocols, COMTRADE records, file categories, full file list with SHA-256.
+- **HTML**: self-contained and works offline; print to PDF from any browser. Sections: network map, assets, findings, GOOSE, observed protocols, COMTRADE records, file categories, full file list with SHA-256.
 - **JSON**: everything, including per-file details.
 - **CSV**: `files.csv`, `assets.csv`, `findings.csv`.
 
@@ -69,8 +114,11 @@ python -m otinspect scan samples --html demo.html
 ```
 otinspect/
   core/      identify.py · scanner.py (recursion, hashing, threads, cross-reference) · registry.py · model.py
-  parsers/   scl · comtrade · pcap · plc_l5x · devicedesc · logfile · archive · binary
-  report/    export.py (HTML / JSON / CSV)
+  parsers/   scl · comtrade · pcap · plc_l5x · plc_iec · devicedesc · logfile · archive · binary
+  diff/      scd_diff.py
+  rules/     engine.py (YAML/JSON rules) · advisories.py (CSAF import + matching) · builtin.json
+  report/    export.py (HTML / JSON / CSV) · netmap.py (SVG network map)
+packaging/   PyInstaller spec for the Windows executables
   gui/       app.py (PyQt5)
   cli.py
 ```
@@ -80,15 +128,18 @@ To add a format, create a module in `otinspect/parsers/` with a class exposing `
 ## Tests
 
 ```bash
-pip install pytest && python -m pytest -q
+pip install ".[dev]" && python -m pytest -q
 ```
+
+The suite covers every parser, diff, rules, advisories and the reports, plus robustness: random garbage under every OT extension, truncated and bit-flipped samples, XML entity bombs, XXE, zip slip, zip bombs, Unicode paths and a 1,500-file tree. CI runs it on Windows and Linux with Python 3.9 and 3.13.
 
 ## Roadmap
 
-- Network diagram generated from SCL Communication + PCAP hosts
-- SCD diff between two versions (what changed in the substation)
-- Siemens TIA archive internals, Schneider XEF, PLCopen XML logic summary
-- YAML-defined custom rules and vulnerability lookup by vendor/model/firmware
+- GOOSE publisher/subscriber matrix from SCL `Inputs/ExtRef`
+- IEC 104 / DNP3 / S7comm deeper decoding in captures
+- More engineering formats (ABB PCM600, GE EnerVista, SEL AcSELerator) as sample files become available
+
+Contributions and (anonymized) sample files for unsupported formats are very welcome.
 
 ## Handling
 

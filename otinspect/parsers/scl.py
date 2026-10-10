@@ -99,11 +99,12 @@ class SCLParser:
         ieds = _children(root, "IED")
         goose_list, smv_list, report_count, dataset_count = [], [], 0, 0
         ln_classes: Counter = Counter()
+        datasets: dict[str, list[str]] = {}
         for ied in ieds:
             iname = ied.get("name", "")
             ldevices, protos = [], set()
             aps = _children(ied, "AccessPoint")
-            ip, mac, subnet, gw = "", "", "", ""
+            ip, mac, subnet, gw, snname = "", "", "", "", ""
             for ap in aps:
                 a = comm.get((iname, ap.get("name", "")))
                 if a and not ip:
@@ -111,6 +112,7 @@ class SCLParser:
                     subnet = a.get("IP-SUBNET", "")
                     gw = a.get("IP-GATEWAY", "")
                     mac = a.get("MAC-Address", "")
+                    snname = a.get("subnetwork", "")
                 if _iter(ap, "Server"):
                     protos.add("MMS")
             for ld in _iter(ied, "LDevice"):
@@ -120,7 +122,14 @@ class SCLParser:
                     cls = ln.get("lnClass", "")
                     ln_classes[cls] += 1
                     lns.append(f"{ln.get('prefix', '')}{cls}{ln.get('inst', '')}")
-                    dataset_count += len(_children(ln, "DataSet"))
+                    for ds in _children(ln, "DataSet"):
+                        dataset_count += 1
+                        members = []
+                        for fc in _children(ds, "FCDA"):
+                            members.append(f"{fc.get('ldInst', '')}/{fc.get('prefix', '')}{fc.get('lnClass', '')}"
+                                           f"{fc.get('lnInst', '')}.{fc.get('doName', '')}"
+                                           f"{'.' + fc.get('daName') if fc.get('daName') else ''}[{fc.get('fc', '')}]")
+                        datasets[f"{iname}/{ld_inst}/{ds.get('name', '')}"] = members
                     report_count += len(_children(ln, "ReportControl"))
                     for g in _children(ln, "GSEControl"):
                         protos.add("GOOSE")
@@ -148,7 +157,7 @@ class SCLParser:
                 vendor=ied.get("manufacturer", ""), model=ied.get("type", ""),
                 version=ied.get("configVersion", "") or ied.get("originalSclVersion", ""),
                 ip=ip, mac=mac, subnet=subnet, protocols=sorted(protos), source=rec.path,
-                extra={"desc": ied.get("desc", ""), "gateway": gw,
+                extra={"desc": ied.get("desc", ""), "gateway": gw, "subnetwork": snname,
                        "access_points": [a.get("name", "") for a in aps],
                        "ldevices": ldevices},
             )
@@ -176,6 +185,7 @@ class SCLParser:
             "bay_count": bays,
             "top_ln_classes": dict(ln_classes.most_common(15)),
             "goose": goose_list,
+            "datasets": datasets,
             "smv": smv_list,
         })
         rec.findings.extend(self._rules(rec, goose_list, smv_list))

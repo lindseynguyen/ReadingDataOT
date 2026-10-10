@@ -118,6 +118,92 @@ def eds():
         fh.write(txt)
 
 
+def scd_v2():
+    """A second revision of substation_demo.scd with typical integrator changes."""
+    src = open(os.path.join(HERE, "substation_demo.scd"), encoding="utf-8").read()
+    s = src.replace('<P type="IP">10.10.1.12</P>', '<P type="IP">10.10.1.22</P>')
+    s = s.replace('<P type="MAC-Address">01-0C-CD-01-00-02</P><P type="APPID">0001</P>',
+                  '<P type="MAC-Address">01-0C-CD-01-00-02</P><P type="APPID">0002</P>')
+    s = s.replace('<FCDA ldInst="PROT" lnClass="PDIF" lnInst="1" doName="Op" daName="general" fc="ST"/>',
+                  '<FCDA ldInst="PROT" lnClass="PDIF" lnInst="1" doName="Op" daName="general" fc="ST"/>\n'
+                  '            <FCDA ldInst="PROT" lnClass="PDIF" lnInst="1" doName="Str" daName="general" fc="ST"/>')
+    s = s.replace('type="REC670" configVersion="2.2"', 'type="REC670" configVersion="2.2.5"')
+    s = s.replace('<LN lnClass="MMXU" inst="1" lnType="MMXU_T"/>',
+                  '<LN lnClass="MMXU" inst="1" lnType="MMXU_T"/>\n        <LN lnClass="MSQI" inst="1" lnType="MSQI_T"/>')
+    with open(os.path.join(HERE, "substation_demo_v2.scd"), "w", encoding="utf-8") as fh:
+        fh.write(s)
+
+
+AML = """<?xml version="1.0" encoding="utf-8"?>
+<CAEXFile FileName="Line1.aml" SchemaVersion="2.15" xmlns="http://www.dke.de/CAEX">
+  <SourceDocumentInformation OriginName="TIA Portal Openness" OriginVersion="V17"/>
+  <AdditionalInformation><WriterHeader><WriterName>TIA Portal Openness</WriterName></WriterHeader></AdditionalInformation>
+  <InstanceHierarchy Name="Line1">
+    <InternalElement ID="1" Name="PLC_1">
+      <Attribute Name="TypeIdentifier"><Value>OrderNumber:6ES7 515-2AM02-0AB0/V2.9</Value></Attribute>
+      <Attribute Name="FirmwareVersion"><Value>V2.9</Value></Attribute>
+      <InternalElement ID="2" Name="PROFINET interface_1">
+        <InternalElement ID="3" Name="E1">
+          <Attribute Name="NetworkAddress"><Value>10.30.0.10</Value></Attribute>
+          <Attribute Name="SubnetMask"><Value>255.255.255.0</Value></Attribute>
+        </InternalElement>
+      </InternalElement>
+    </InternalElement>
+    <InternalElement ID="4" Name="HMI_1">
+      <Attribute Name="TypeIdentifier"><Value>OrderNumber:6AV2 124-0MC01-0AX0/17.0.0.0</Value></Attribute>
+      <InternalElement ID="5" Name="X1"><Attribute Name="NetworkAddress"><Value>10.30.0.20</Value></Attribute></InternalElement>
+    </InternalElement>
+    <InternalElement ID="6" Name="ET200SP_1">
+      <Attribute Name="TypeIdentifier"><Value>OrderNumber:6ES7 155-6AU01-0BN0/V4.2</Value></Attribute>
+      <InternalElement ID="7" Name="X1"><Attribute Name="NetworkAddress"><Value>10.30.0.31</Value></Attribute></InternalElement>
+    </InternalElement>
+  </InstanceHierarchy>
+</CAEXFile>
+"""
+
+XEF = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<FEFExportProject>
+<fileHeader company="Schneider Automation" product="EcoStruxure Control Expert V15.0" dateTime="date_and_time#2026-9-1-8:0:0" content="Project source file" DTDVersion="41"></fileHeader>
+<contentHeader name="WTP_FILTERS" version="0.0.42" dateTime="date_and_time#2026-9-1-8:0:0"></contentHeader>
+<program><identProg name="Main" type="section" task="MAST"></identProg><STSource>Pump1 := StartCmd AND NOT Fault;</STSource></program>
+<program><identProg name="Alarms" type="section" task="MAST"></identProg><LDSource></LDSource></program>
+<program><identProg name="Fast" type="section" task="FAST"></identProg><FBDSource></FBDSource></program>
+<dataBlock>
+<variables name="StartCmd" typeName="BOOL"></variables>
+<variables name="Fault" typeName="BOOL"></variables>
+<variables name="Pump1" typeName="EBOOL"></variables>
+<variables name="Maint_Password" typeName="STRING"></variables>
+</dataBlock>
+</FEFExportProject>
+"""
+
+PLCOPEN = """<?xml version="1.0" encoding="utf-8"?>
+<project xmlns="http://www.plcopen.org/xml/tc6_0201">
+  <fileHeader companyName="CODESYS" productName="CODESYS" productVersion="V3.5 SP19" creationDateTime="2026-09-01T08:00:00"/>
+  <contentHeader name="Boiler_Control"><coordinateInfo><fbd><scaling x="1" y="1"/></fbd><ld><scaling x="1" y="1"/></ld><sfc><scaling x="1" y="1"/></sfc></coordinateInfo></contentHeader>
+  <types><dataTypes/><pous>
+    <pou name="PLC_PRG" pouType="program"><interface><localVars><variable name="TempSet"><type><REAL/></type></variable></localVars></interface><body><ST><xhtml xmlns="http://www.w3.org/1999/xhtml">TempSet := 80.0;</xhtml></ST></body></pou>
+    <pou name="FB_Burner" pouType="functionBlock"><body><SFC/></body></pou>
+    <pou name="F_Scale" pouType="function"><body><ST/></body></pou>
+  </pous></types>
+  <instances><configurations><configuration name="Boiler_PLC"><resource name="Application"><task name="MainTask" interval="T#20ms" priority="1"/></resource></configuration></configurations></instances>
+</project>
+"""
+
+
+def engineering():
+    with open(os.path.join(HERE, "line1_hw.aml"), "w", encoding="utf-8") as fh:
+        fh.write(AML)
+    with open(os.path.join(HERE, "wtp_filters.xef"), "w", encoding="utf-8") as fh:
+        fh.write(XEF)
+    with open(os.path.join(HERE, "boiler_plcopen.xml"), "w", encoding="utf-8") as fh:
+        fh.write(PLCOPEN)
+    import zipfile
+    with zipfile.ZipFile(os.path.join(HERE, "contractor_handover.zip"), "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("Line1/Hardware/line1_hw.aml", AML)
+        zf.writestr("Line1/readme.txt", "Handover package (synthetic)")
+
+
 if __name__ == "__main__":
-    comtrade(); pcap(); l5x(); eds()
+    comtrade(); pcap(); l5x(); eds(); scd_v2(); engineering()
     print("samples regenerated")

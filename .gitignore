@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+build/
+dist/
+*.egg-info/
+packaging/version_info.txt
+version.txt
+*.spec.bak

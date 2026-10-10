@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<project xmlns="http://www.plcopen.org/xml/tc6_0201">
+  <fileHeader companyName="CODESYS" productName="CODESYS" productVersion="V3.5 SP19" creationDateTime="2026-09-01T08:00:00"/>
+  <contentHeader name="Boiler_Control"><coordinateInfo><fbd><scaling x="1" y="1"/></fbd><ld><scaling x="1" y="1"/></ld><sfc><scaling x="1" y="1"/></sfc></coordinateInfo></contentHeader>
+  <types><dataTypes/><pous>
+    <pou name="PLC_PRG" pouType="program"><interface><localVars><variable name="TempSet"><type><REAL/></type></variable></localVars></interface><body><ST><xhtml xmlns="http://www.w3.org/1999/xhtml">TempSet := 80.0;</xhtml></ST></body></pou>
+    <pou name="FB_Burner" pouType="functionBlock"><body><SFC/></body></pou>
+    <pou name="F_Scale" pouType="function"><body><ST/></body></pou>
+  </pous></types>
+  <instances><configurations><configuration name="Boiler_PLC"><resource name="Application"><task name="MainTask" interval="T#20ms" priority="1"/></resource></configuration></configurations></instances>
+</project>
