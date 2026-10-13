@@ -10,17 +10,13 @@ and runs basic risk rules.
 from __future__ import annotations
 
 import ipaddress
-import xml.etree.ElementTree as ET
 from collections import Counter, defaultdict
 
 from ..core.identify import Identity
 from ..core.model import Asset, FileRecord, Finding
 from ..core.registry import register
+from ..core.safexml import safe_parse
 
-try:  # guard against XXE / billion laughs when defusedxml is available
-    from defusedxml.ElementTree import parse as safe_parse  # type: ignore
-except Exception:  # pragma: no cover
-    safe_parse = ET.parse
 
 
 def _local(tag: str) -> str:

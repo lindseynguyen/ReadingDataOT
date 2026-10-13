@@ -5,16 +5,12 @@ from __future__ import annotations
 
 import configparser
 import re
-import xml.etree.ElementTree as ET
 
 from ..core.identify import Identity
 from ..core.model import Asset, FileRecord
 from ..core.registry import register
+from ..core.safexml import safe_parse
 
-try:
-    from defusedxml.ElementTree import parse as safe_parse  # type: ignore
-except Exception:  # pragma: no cover
-    safe_parse = ET.parse
 
 
 def _local(tag: str) -> str:

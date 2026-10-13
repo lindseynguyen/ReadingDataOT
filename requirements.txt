@@ -1,7 +1,9 @@
-# Core + CLI only need Python 3.9+ (standard library)
-# GUI:
-PyQt5>=5.15
-# Recommended (safe parsing of untrusted XML):
+# Same dependencies as pyproject.toml. Preferred install: pip install ".[gui]"
+# Required: safe parsing of untrusted XML (OTInspect refuses to parse XML without it)
 defusedxml>=0.7
+# Required: YAML rule files
+pyyaml>=6
+# GUI only (not needed for the command line)
+PyQt5>=5.15
 # Optional (reference MIME type):
 # python-magic>=0.4 ; on Windows use python-magic-bin

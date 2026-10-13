@@ -11,17 +11,13 @@
 from __future__ import annotations
 
 import re
-import xml.etree.ElementTree as ET
 from collections import Counter
 
 from ..core.identify import Identity
 from ..core.model import Asset, FileRecord, Finding
 from ..core.registry import register
+from ..core.safexml import safe_parse
 
-try:
-    from defusedxml.ElementTree import parse as safe_parse  # type: ignore
-except Exception:  # pragma: no cover
-    safe_parse = ET.parse
 
 IP_RE = re.compile(r"^(?:\d{1,3}\.){3}\d{1,3}$")
 SECRET_NAME = re.compile(r"(?i)pass(word)?|pwd|passwd|secret")

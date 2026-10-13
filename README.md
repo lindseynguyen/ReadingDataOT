@@ -110,13 +110,15 @@ cd ReadingDataOT
 pip install ".[gui]"        # or: pip install -r requirements.txt
 ```
 
-Python 3.9+ is required. PyQt5 is needed only for the GUI.
+Python 3.9+ is required, plus `defusedxml` and `PyYAML` (installed automatically). PyQt5 is needed only for the GUI.
+
+XML files are parsed only through defusedxml: if it is missing, OTInspect reports XML files as parse errors instead of falling back to an unprotected parser.
 
 ## Usage
 
 ```bash
 # GUI
-otinspect gui                   # or: python data-kiosk.py
+otinspect gui                   # or: python -m otinspect gui
 
 # Scan
 otinspect scan D:\Substation_Backup --html report.html --json report.json --csv out\
@@ -151,14 +153,14 @@ python -m otinspect scan samples --html demo.html
 
 ```
 otinspect/
-  core/      identify.py · scanner.py (recursion, hashing, threads, cross-reference) · registry.py · model.py
+  core/      identify.py · scanner.py (recursion, hashing, threads, cross-reference) · registry.py · model.py · safexml.py (hardened XML)
   parsers/   scl · comtrade · pcap · plc_l5x · plc_iec · devicedesc · logfile · archive · binary
   diff/      scd_diff.py
   rules/     engine.py (YAML/JSON rules) · advisories.py (CSAF import + matching) · builtin.json
   report/    export.py (HTML / JSON / CSV) · netmap.py (SVG network map)
-packaging/   PyInstaller spec for the Windows executables
   gui/       app.py (PyQt5)
   cli.py
+packaging/   PyInstaller spec for the Windows executables
 ```
 
 To add a format, create a module in `otinspect/parsers/` with a class exposing `can_parse()` and `parse()`, decorate it with `@register`, and import it in `core/registry.py → load_builtin()`. Parsers are tried in import order.
@@ -182,6 +184,14 @@ Contributions and (anonymized) sample files for unsupported formats are very wel
 ## Handling
 
 Reports contain IPs, MACs and system topology. Treat them as confidential according to your organization's policy.
+
+## Security
+
+To report a vulnerability in OTInspect itself (for example a file that crashes or hangs a scan, or reaches outside the scanned folder), see [SECURITY.md](SECURITY.md). Please do not open a public issue for it.
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 

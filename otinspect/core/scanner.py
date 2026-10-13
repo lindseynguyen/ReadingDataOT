@@ -9,6 +9,7 @@ from typing import Callable, Iterable
 from .identify import identify, read_head
 from .model import FileRecord, Finding, ScanResult
 from .registry import find_parser, load_builtin
+from .safexml import MISSING_MSG, available as safexml_available
 
 SKIP_DIRS = {".git", "__pycache__", "node_modules", ".svn"}
 ProgressCb = Callable[[int, int, str], None]
@@ -82,6 +83,8 @@ def scan(root: str, recursive: bool = True, workers: int = 4,
     from ..rules import apply_rules, load_rules
     loaded, warns = load_rules(rules, include_builtin=builtin_rules)
     result.warnings = warns
+    if not safexml_available():
+        result.warnings.insert(0, MISSING_MSG)
     apply_rules(result, loaded)
     advisories = advisories or os.environ.get("OTINSPECT_ADVISORIES")
     if advisories:

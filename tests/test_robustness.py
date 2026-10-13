@@ -122,3 +122,25 @@ def test_many_files_performance():
     res = scan(d)
     assert len(res.files) == 1500
     assert time.time() - t < 60
+
+
+def test_xml_parsing_fails_closed_without_defusedxml(monkeypatch):
+    """Without defusedxml, XML must be reported as an error, never parsed unsafely."""
+    from otinspect.core import safexml
+    monkeypatch.setattr(safexml, "_defused_parse", None)
+    res = scan(os.path.join(S, "substation_demo.scd"))
+    rec = res.files[0]
+    assert rec.error and "defusedxml" in rec.error
+    assert not rec.assets
+    assert any("defusedxml" in w for w in res.warnings)
+
+
+def test_xxe_is_blocked():
+    d = tempfile.mkdtemp()
+    secret = _write(d, "secret.txt", b"TOPSECRET")
+    payload = (f'<?xml version="1.0"?><!DOCTYPE SCL [<!ENTITY x SYSTEM "file://{secret}">]>'
+               '<SCL xmlns="http://www.iec.ch/61850/2003/SCL"><Header id="&x;"/></SCL>').encode()
+    evil = _write(d, "evil.scd", payload)
+    res = scan(evil)
+    import json
+    assert "TOPSECRET" not in json.dumps(res.to_dict())
