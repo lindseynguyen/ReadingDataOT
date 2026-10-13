@@ -5,10 +5,12 @@
 import os
 
 ROOT = os.path.abspath(os.path.join(SPECPATH, ".."))
-datas = [(os.path.join(ROOT, "otinspect", "rules", "builtin.json"), os.path.join("otinspect", "rules"))]
+datas = [(os.path.join(ROOT, "otinspect", "rules", "builtin.json"), os.path.join("otinspect", "rules")),
+         (os.path.join(ROOT, "otinspect", "standards", "mappings.json"), os.path.join("otinspect", "standards"))]
 hidden = [
     "otinspect.parsers.scl", "otinspect.parsers.comtrade", "otinspect.parsers.pcap",
     "otinspect.parsers.plc_l5x", "otinspect.parsers.plc_iec", "otinspect.parsers.devicedesc",
+    "otinspect.parsers.netconfig", "otinspect.parsers.otcmd",
     "otinspect.parsers.logfile", "otinspect.parsers.archive", "otinspect.parsers.binary",
     "defusedxml.ElementTree", "yaml",
 ]

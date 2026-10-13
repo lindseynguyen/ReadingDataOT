@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability in OTInspect
+    url: https://github.com/lindseynguyen/ReadingDataOT/security/advisories/new
+    about: Please report vulnerabilities privately, not as a public issue (see SECURITY.md)

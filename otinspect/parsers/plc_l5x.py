@@ -20,6 +20,7 @@ IP_RE = re.compile(r"^\d{1,3}(\.\d{1,3}){3}$")
 @register
 class L5XParser:
     name = "rockwell"
+    max_size = 256 * 1024 * 1024  # whole document in memory
 
     def can_parse(self, rec: FileRecord, ident: Identity) -> bool:
         p = rec.path.lower()

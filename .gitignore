@@ -7,3 +7,8 @@ dist/
 packaging/version_info.txt
 version.txt
 *.spec.bak
+
+tests/realworld/.cache/
+.coverage
+coverage.xml
+.hypothesis/

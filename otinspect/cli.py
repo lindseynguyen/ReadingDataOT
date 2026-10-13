@@ -68,9 +68,15 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--json", help="Write JSON report")
     s.add_argument("--html", help="Write HTML report (print to PDF from a browser)")
     s.add_argument("--csv", help="Directory for files.csv / assets.csv / findings.csv")
+    s.add_argument("--sarif", help="Write SARIF 2.1.0 (GitHub code scanning)")
+    s.add_argument("--cyclonedx", help="Write CycloneDX 1.6 JSON bill of materials of the assets")
     s.add_argument("--rules", action="append", default=[], help="Extra rule file or folder (YAML/JSON); repeatable")
     s.add_argument("--no-builtin-rules", action="store_true")
     s.add_argument("--advisories", help="Advisory DB built with 'advisories import' (or set OTINSPECT_ADVISORIES)")
+    s.add_argument("--max-file-mb", type=float,
+                   help="Size limit for parsing one file, overriding the per-parser defaults "
+                        "(SCL 2048, PLC exports 256, device descriptions 32; 0 = no limit). "
+                        "Larger files are still hashed and identified")
     s.add_argument("-q", "--quiet", action="store_true")
     s.add_argument("--fail-on", choices=["high", "medium", "low"],
                    help="Exit with code 2 if any finding is at or above this severity (for CI / scheduled checks)")
@@ -129,7 +135,8 @@ def main(argv: list[str] | None = None) -> int:
             sys.stderr.flush()
 
     res = scan(args.path, recursive=not args.no_recursive, workers=args.workers, progress=prog,
-               rules=args.rules, builtin_rules=not args.no_builtin_rules, advisories=args.advisories)
+               rules=args.rules, builtin_rules=not args.no_builtin_rules, advisories=args.advisories,
+               max_file_mb=args.max_file_mb)
     if not args.quiet:
         sys.stderr.write("\n")
         _print_summary(res)
@@ -142,6 +149,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.csv:
         for p in to_csv(res, args.csv):
             print(f"CSV:  {p}")
+    if args.sarif or args.cyclonedx:
+        from .report.interop import to_cyclonedx, to_sarif
+        if args.sarif:
+            to_sarif(res, args.sarif)
+            print(f"SARIF: {args.sarif}")
+        if args.cyclonedx:
+            to_cyclonedx(res, args.cyclonedx)
+            print(f"CycloneDX: {args.cyclonedx}")
     return 2 if _fail(res.findings, args.fail_on) else 0
 
 

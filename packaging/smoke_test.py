@@ -32,16 +32,24 @@ if os.path.exists("smoke.json"):
     print(f"::notice title=CLI scan::version={v} files={files} assets={assets} rules={len(rules)} parsers={sorted(parsers)}")
     if files < 10 or assets < 20:
         errors.append(f"unexpected scan result files={files} assets={assets}")
-    for need in ("ASSET-NO-VERSION", "XREF-UNDOCUMENTED-HOST", "SCL-IP-DUP", "PCAP-MODBUS-WRITE", "XEF-PASSWORD-VAR"):
+    for need in ("ASSET-NO-VERSION", "XREF-UNDOCUMENTED-HOST", "SCL-IP-DUP", "PCAP-MODBUS-WRITE", "XEF-PASSWORD-VAR",
+                 "PCAP-S7-STOP", "PCAP-IEC104-CONTROL", "NET-FW-ANY-ANY", "NET-TELNET-ENABLED"):
         if need not in rules:
             errors.append(f"rule {need} missing from frozen build")
-    for need in ("scl", "pcap", "comtrade", "automationml", "rockwell", "zip"):
+    if not any(x.get("iec62443") for f in r["files"] for x in f["findings"]):
+        errors.append("standards mappings (mappings.json) missing from frozen build")
+    for need in ("scl", "pcap", "comtrade", "automationml", "rockwell", "zip", "netconfig"):
         if need not in parsers:
             errors.append(f"parser {need} missing from frozen build")
     if r.get("warnings"):
         errors.append(f"warnings: {r['warnings']}")
 else:
     errors.append("smoke.json not written")
+
+run(["scan", "samples", "-q", "--sarif", "smoke.sarif", "--cyclonedx", "smoke.cdx.json"])
+for out in ("smoke.sarif", "smoke.cdx.json"):
+    if not os.path.exists(out):
+        errors.append(f"{out} not written")
 
 run(["diff", os.path.join("samples", "substation_demo.scd"), os.path.join("samples", "substation_demo_v2.scd"),
      "--fail-on", "high"], expect=2)

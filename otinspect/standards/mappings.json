@@ -1,0 +1,730 @@
+{
+ "_comment": "Finding rule -> IEC 62443-3-3 system requirements and MITRE ATT&CK for ICS techniques. Patterns may use * . Mappings are guidance for auditors, not a compliance verdict.",
+ "iec62443_3_3": {
+  "SR 1.1": "Human user identification and authentication",
+  "SR 1.2": "Software process and device identification and authentication",
+  "SR 1.5": "Authenticator management",
+  "SR 1.7": "Strength of password-based authentication",
+  "SR 1.9": "Strength of public key-based authentication",
+  "SR 1.13": "Access via untrusted networks",
+  "SR 2.1": "Authorization enforcement",
+  "SR 2.6": "Remote session termination",
+  "SR 2.8": "Auditable events",
+  "SR 2.11": "Timestamps",
+  "SR 3.1": "Communication integrity",
+  "SR 3.4": "Software and information integrity",
+  "SR 3.5": "Input validation",
+  "SR 4.1": "Information confidentiality",
+  "SR 4.3": "Use of cryptography",
+  "SR 5.1": "Network segmentation",
+  "SR 5.2": "Zone boundary protection",
+  "SR 6.1": "Audit log accessibility",
+  "SR 6.2": "Continuous monitoring",
+  "SR 7.1": "Denial of service protection",
+  "SR 7.6": "Network and security configuration settings",
+  "SR 7.7": "Least functionality",
+  "SR 7.8": "Control system component inventory"
+ },
+ "attack_ics": {
+  "T0809": "Data Destruction",
+  "T0816": "Device Restart/Shutdown",
+  "T0822": "External Remote Services",
+  "T0830": "Adversary-in-the-Middle",
+  "T0831": "Manipulation of Control",
+  "T0835": "Manipulate I/O Image",
+  "T0836": "Modify Parameter",
+  "T0842": "Network Sniffing",
+  "T0843": "Program Download",
+  "T0845": "Program Upload",
+  "T0848": "Rogue Master",
+  "T0858": "Change Operating Mode",
+  "T0859": "Valid Accounts",
+  "T0864": "Transient Cyber Asset",
+  "T0872": "Indicator Removal on Host",
+  "T0873": "Project File Infection",
+  "T0878": "Alarm Suppression",
+  "T0881": "Service Stop",
+  "T0882": "Theft of Operational Information",
+  "T0883": "Internet Accessible Device",
+  "T0886": "Remote Services",
+  "T0888": "Remote System Information Discovery",
+  "T0889": "Modify Program",
+  "T0892": "Change Credential",
+  "T1692.001": "Unauthorized Message: Command Message",
+  "T1692.002": "Unauthorized Message: Reporting Message",
+  "T1694.001": "Insecure Credentials: Default Credentials",
+  "T1694.002": "Insecure Credentials: Hardcoded Credentials"
+ },
+ "rules": {
+  "SCL-IP-DEFAULT": {
+   "iec62443": [
+    "SR 7.6"
+   ],
+   "attack": []
+  },
+  "SCL-IP-DUP": {
+   "iec62443": [
+    "SR 7.6"
+   ],
+   "attack": []
+  },
+  "SCL-GW-OUTSIDE": {
+   "iec62443": [
+    "SR 7.6"
+   ],
+   "attack": []
+  },
+  "SCL-IP-INVALID": {
+   "iec62443": [
+    "SR 7.6"
+   ],
+   "attack": []
+  },
+  "SCL-NO-IP": {
+   "iec62443": [
+    "SR 7.8"
+   ],
+   "attack": []
+  },
+  "SCL-GOOSE-NOVLAN": {
+   "iec62443": [
+    "SR 5.1"
+   ],
+   "attack": []
+  },
+  "SCL-*-APPID-DUP": {
+   "iec62443": [
+    "SR 7.6",
+    "SR 3.1"
+   ],
+   "attack": []
+  },
+  "SCL-*-MAC-DUP": {
+   "iec62443": [
+    "SR 7.6"
+   ],
+   "attack": []
+  },
+  "SCL-*-NOADDR": {
+   "iec62443": [
+    "SR 7.6"
+   ],
+   "attack": []
+  },
+  "SCL-62351": {
+   "iec62443": [
+    "SR 3.1",
+    "SR 1.2"
+   ],
+   "attack": [
+    "T1692.001",
+    "T1692.002"
+   ]
+  },
+  "PCAP-CLEARTEXT-ADMIN": {
+   "iec62443": [
+    "SR 4.1",
+    "SR 7.7"
+   ],
+   "attack": [
+    "T0842",
+    "T0886"
+   ]
+  },
+  "PCAP-MODBUS-WRITE": {
+   "iec62443": [
+    "SR 2.1",
+    "SR 3.1"
+   ],
+   "attack": [
+    "T0836",
+    "T1692.001"
+   ]
+  },
+  "PCAP-MODBUS-RECON": {
+   "iec62443": [
+    "SR 6.2"
+   ],
+   "attack": [
+    "T0888"
+   ]
+  },
+  "PCAP-GOOSE-UNTAGGED": {
+   "iec62443": [
+    "SR 5.1"
+   ],
+   "attack": []
+  },
+  "PCAP-GOOSE-APPID-DUP": {
+   "iec62443": [
+    "SR 3.1"
+   ],
+   "attack": [
+    "T1692.002",
+    "T0830"
+   ]
+  },
+  "XREF-UNDOCUMENTED-HOST": {
+   "iec62443": [
+    "SR 7.8"
+   ],
+   "attack": [
+    "T0864",
+    "T0848"
+   ]
+  },
+  "PCAP-IEC104-CONTROL": {
+   "iec62443": [
+    "SR 2.1",
+    "SR 3.1",
+    "SR 1.2"
+   ],
+   "attack": [
+    "T1692.001",
+    "T0831"
+   ]
+  },
+  "PCAP-DNP3-CONTROL": {
+   "iec62443": [
+    "SR 2.1",
+    "SR 3.1",
+    "SR 1.2"
+   ],
+   "attack": [
+    "T1692.001",
+    "T0831"
+   ]
+  },
+  "PCAP-IEC104-RESET": {
+   "iec62443": [
+    "SR 2.1"
+   ],
+   "attack": [
+    "T0816"
+   ]
+  },
+  "PCAP-DNP3-RESTART": {
+   "iec62443": [
+    "SR 2.1"
+   ],
+   "attack": [
+    "T0816"
+   ]
+  },
+  "PCAP-CIP-RESET": {
+   "iec62443": [
+    "SR 2.1"
+   ],
+   "attack": [
+    "T0816"
+   ]
+  },
+  "PCAP-IEC104-PARAMETER": {
+   "iec62443": [
+    "SR 2.1"
+   ],
+   "attack": [
+    "T0836"
+   ]
+  },
+  "PCAP-IEC104-FILE": {
+   "iec62443": [
+    "SR 2.1",
+    "SR 4.1"
+   ],
+   "attack": [
+    "T0882",
+    "T0809"
+   ]
+  },
+  "PCAP-DNP3-FILE": {
+   "iec62443": [
+    "SR 2.1",
+    "SR 4.1"
+   ],
+   "attack": [
+    "T0882",
+    "T0809"
+   ]
+  },
+  "PCAP-DNP3-WRITE": {
+   "iec62443": [
+    "SR 2.1"
+   ],
+   "attack": [
+    "T0836"
+   ]
+  },
+  "PCAP-DNP3-STOP-APPL": {
+   "iec62443": [
+    "SR 2.1"
+   ],
+   "attack": [
+    "T0881",
+    "T0858"
+   ]
+  },
+  "PCAP-S7-STOP": {
+   "iec62443": [
+    "SR 2.1"
+   ],
+   "attack": [
+    "T0881",
+    "T0858"
+   ]
+  },
+  "PCAP-CIP-STOP": {
+   "iec62443": [
+    "SR 2.1"
+   ],
+   "attack": [
+    "T0881",
+    "T0858"
+   ]
+  },
+  "PCAP-DNP3-APPL-CONTROL": {
+   "iec62443": [
+    "SR 2.1"
+   ],
+   "attack": [
+    "T0858"
+   ]
+  },
+  "PCAP-DNP3-CONFIG": {
+   "iec62443": [
+    "SR 2.1",
+    "SR 7.6"
+   ],
+   "attack": [
+    "T0836",
+    "T0878"
+   ]
+  },
+  "PCAP-DNP3-NO-SA": {
+   "iec62443": [
+    "SR 1.2",
+    "SR 3.1"
+   ],
+   "attack": [
+    "T1692.001"
+   ]
+  },
+  "PCAP-S7-WRITE": {
+   "iec62443": [
+    "SR 2.1"
+   ],
+   "attack": [
+    "T0836"
+   ]
+  },
+  "PCAP-CIP-WRITE": {
+   "iec62443": [
+    "SR 2.1"
+   ],
+   "attack": [
+    "T0836"
+   ]
+  },
+  "PCAP-CIP-CONFIG": {
+   "iec62443": [
+    "SR 2.1",
+    "SR 7.6"
+   ],
+   "attack": [
+    "T0836"
+   ]
+  },
+  "PCAP-S7-PROGRAM": {
+   "iec62443": [
+    "SR 2.1",
+    "SR 3.4"
+   ],
+   "attack": [
+    "T0843",
+    "T0889"
+   ]
+  },
+  "PCAP-S7-START": {
+   "iec62443": [
+    "SR 2.1"
+   ],
+   "attack": [
+    "T0858"
+   ]
+  },
+  "PCAP-S7-PASSWORD": {
+   "iec62443": [
+    "SR 1.5",
+    "SR 2.1"
+   ],
+   "attack": [
+    "T0892"
+   ]
+  },
+  "PCAP-S7-SET-CLOCK": {
+   "iec62443": [
+    "SR 2.11"
+   ],
+   "attack": []
+  },
+  "PCAP-S7-UPLOAD": {
+   "iec62443": [
+    "SR 2.1",
+    "SR 4.1"
+   ],
+   "attack": [
+    "T0845"
+   ]
+  },
+  "PCAP-S7-RECON": {
+   "iec62443": [
+    "SR 6.2"
+   ],
+   "attack": [
+    "T0888"
+   ]
+  },
+  "PCAP-ENIP-RECON": {
+   "iec62443": [
+    "SR 6.2"
+   ],
+   "attack": [
+    "T0888"
+   ]
+  },
+  "L5X-PASSWORD-TAG": {
+   "iec62443": [
+    "SR 1.5",
+    "SR 4.1"
+   ],
+   "attack": [
+    "T1694.002"
+   ]
+  },
+  "XEF-PASSWORD-VAR": {
+   "iec62443": [
+    "SR 1.5",
+    "SR 4.1"
+   ],
+   "attack": [
+    "T1694.002"
+   ]
+  },
+  "PLCOPEN-PASSWORD-VAR": {
+   "iec62443": [
+    "SR 1.5",
+    "SR 4.1"
+   ],
+   "attack": [
+    "T1694.002"
+   ]
+  },
+  "L5X-NO-SOURCE-PROTECTION": {
+   "iec62443": [
+    "SR 3.4",
+    "SR 4.1"
+   ],
+   "attack": [
+    "T0889",
+    "T0873"
+   ]
+  },
+  "L5X-TAGS-EXTERNAL-RW": {
+   "iec62443": [
+    "SR 2.1"
+   ],
+   "attack": [
+    "T0836"
+   ]
+  },
+  "L5X-NO-SECURITY-AUTHORITY": {
+   "iec62443": [
+    "SR 1.1",
+    "SR 2.1"
+   ],
+   "attack": [
+    "T0843"
+   ]
+  },
+  "CFG-CLEARTEXT-PASSWORD": {
+   "iec62443": [
+    "SR 1.5",
+    "SR 4.1"
+   ],
+   "attack": [
+    "T0859"
+   ]
+  },
+  "CFG-SNMP-COMMUNITY": {
+   "iec62443": [
+    "SR 1.5",
+    "SR 1.7"
+   ],
+   "attack": [
+    "T1694.001"
+   ]
+  },
+  "CFG-PRIVATE-KEY": {
+   "iec62443": [
+    "SR 1.9",
+    "SR 4.1"
+   ],
+   "attack": [
+    "T0859"
+   ]
+  },
+  "FW-PASSWD-FILE": {
+   "iec62443": [
+    "SR 1.5"
+   ],
+   "attack": [
+    "T1694.002"
+   ]
+  },
+  "FW-EMBEDDED-KEY": {
+   "iec62443": [
+    "SR 1.9",
+    "SR 4.3"
+   ],
+   "attack": [
+    "T1694.002"
+   ]
+  },
+  "ZIP-BOMB": {
+   "iec62443": [
+    "SR 3.5"
+   ],
+   "attack": []
+  },
+  "ZIP-PATH-TRAVERSAL": {
+   "iec62443": [
+    "SR 3.5"
+   ],
+   "attack": []
+  },
+  "ASSET-NO-VERSION": {
+   "iec62443": [
+    "SR 7.8"
+   ],
+   "attack": []
+  },
+  "ASSET-PUBLIC-IP": {
+   "iec62443": [
+    "SR 5.1",
+    "SR 5.2"
+   ],
+   "attack": [
+    "T0883"
+   ]
+  },
+  "DIFF-*-CONFREV": {
+   "iec62443": [
+    "SR 3.4",
+    "SR 7.6"
+   ],
+   "attack": []
+  },
+  "DIFF-*-ADDR-CHANGED": {
+   "iec62443": [
+    "SR 7.6"
+   ],
+   "attack": []
+  },
+  "DIFF-*-REMOVED": {
+   "iec62443": [
+    "SR 7.6",
+    "SR 7.8"
+   ],
+   "attack": []
+  },
+  "DIFF-HEADER-NOT-BUMPED": {
+   "iec62443": [
+    "SR 7.6"
+   ],
+   "attack": []
+  },
+  "NET-ENABLE-PASSWORD": {
+   "iec62443": [
+    "SR 1.5",
+    "SR 4.3"
+   ],
+   "attack": [
+    "T0859"
+   ]
+  },
+  "NET-PASSWORD-REVERSIBLE": {
+   "iec62443": [
+    "SR 1.5",
+    "SR 4.3"
+   ],
+   "attack": [
+    "T0859"
+   ]
+  },
+  "NET-WEAK-PASSWORD-HASH": {
+   "iec62443": [
+    "SR 1.5",
+    "SR 4.3"
+   ],
+   "attack": [
+    "T0859"
+   ]
+  },
+  "NET-SNMP-DEFAULT-COMMUNITY": {
+   "iec62443": [
+    "SR 1.5",
+    "SR 7.6"
+   ],
+   "attack": [
+    "T1694.001"
+   ]
+  },
+  "NET-DEFAULT-CREDENTIALS": {
+   "iec62443": [
+    "SR 1.5",
+    "SR 1.7"
+   ],
+   "attack": [
+    "T1694.001"
+   ]
+  },
+  "NET-SNMP-RW": {
+   "iec62443": [
+    "SR 2.1"
+   ],
+   "attack": [
+    "T0836"
+   ]
+  },
+  "NET-SNMP-NO-ACL": {
+   "iec62443": [
+    "SR 1.13",
+    "SR 5.2"
+   ],
+   "attack": [
+    "T0886"
+   ]
+  },
+  "NET-MGMT-NO-ACL": {
+   "iec62443": [
+    "SR 1.13",
+    "SR 5.2"
+   ],
+   "attack": [
+    "T0886"
+   ]
+  },
+  "NET-HTTP-ENABLED": {
+   "iec62443": [
+    "SR 4.1",
+    "SR 4.3",
+    "SR 7.7"
+   ],
+   "attack": [
+    "T0842",
+    "T0886"
+   ]
+  },
+  "NET-TELNET-ENABLED": {
+   "iec62443": [
+    "SR 4.1",
+    "SR 4.3",
+    "SR 7.7"
+   ],
+   "attack": [
+    "T0842",
+    "T0886"
+   ]
+  },
+  "NET-SSH-V1": {
+   "iec62443": [
+    "SR 4.3"
+   ],
+   "attack": [
+    "T0842"
+   ]
+  },
+  "NET-SNMP-V1": {
+   "iec62443": [
+    "SR 4.1",
+    "SR 7.7"
+   ],
+   "attack": [
+    "T0842"
+   ]
+  },
+  "NET-NO-SESSION-TIMEOUT": {
+   "iec62443": [
+    "SR 2.6"
+   ],
+   "attack": [
+    "T0886"
+   ]
+  },
+  "NET-NO-REMOTE-LOG": {
+   "iec62443": [
+    "SR 2.8",
+    "SR 6.1"
+   ],
+   "attack": [
+    "T0872"
+   ]
+  },
+  "NET-NO-NTP": {
+   "iec62443": [
+    "SR 2.11"
+   ],
+   "attack": []
+  },
+  "NET-CDP-ENABLED": {
+   "iec62443": [
+    "SR 7.7"
+   ],
+   "attack": [
+    "T0888"
+   ]
+  },
+  "NET-ADMIN-ON-WAN": {
+   "iec62443": [
+    "SR 1.13",
+    "SR 5.2"
+   ],
+   "attack": [
+    "T0883",
+    "T0822"
+   ]
+  },
+  "NET-ADMIN-NO-TRUSTHOST": {
+   "iec62443": [
+    "SR 1.13",
+    "SR 2.1"
+   ],
+   "attack": [
+    "T0886"
+   ]
+  },
+  "NET-FW-ANY-ANY": {
+   "iec62443": [
+    "SR 5.1",
+    "SR 5.2"
+   ],
+   "attack": [
+    "T0886"
+   ]
+  },
+  "NET-FW-ANY-SERVICE": {
+   "iec62443": [
+    "SR 5.2",
+    "SR 7.7"
+   ],
+   "attack": []
+  },
+  "NET-FW-NO-LOG": {
+   "iec62443": [
+    "SR 2.8",
+    "SR 6.2"
+   ],
+   "attack": []
+  }
+ }
+}

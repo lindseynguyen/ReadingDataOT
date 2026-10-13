@@ -14,6 +14,7 @@ from collections import Counter, defaultdict
 from ..core.identify import Identity
 from ..core.model import Asset, FileRecord, Finding
 from ..core.registry import register
+from .otcmd import decode as decode_commands
 
 MAX_PACKETS = 2_000_000
 
@@ -36,6 +37,33 @@ UDP_PORTS = {
     34962: "PROFINET", 34963: "PROFINET", 34964: "PROFINET-CM", 9600: "OMRON FINS",
     1089: "FF HSE", 5050: "Mitsubishi", 102: "MMS",
 }
+# Decoded OT commands that become findings: (protocol, category) -> (rule, severity).
+# Routine traffic (interrogation, reads, time sync) is summarised but not flagged.
+COMMAND_RULES = {
+    ("IEC 104", "control"): ("PCAP-IEC104-CONTROL", "medium"),
+    ("IEC 104", "restart"): ("PCAP-IEC104-RESET", "high"),
+    ("IEC 104", "config"): ("PCAP-IEC104-PARAMETER", "medium"),
+    ("IEC 104", "file"): ("PCAP-IEC104-FILE", "medium"),
+    ("DNP3", "control"): ("PCAP-DNP3-CONTROL", "medium"),
+    ("DNP3", "write"): ("PCAP-DNP3-WRITE", "medium"),
+    ("DNP3", "restart"): ("PCAP-DNP3-RESTART", "high"),
+    ("DNP3", "stop"): ("PCAP-DNP3-STOP-APPL", "high"),
+    ("DNP3", "program"): ("PCAP-DNP3-APPL-CONTROL", "high"),
+    ("DNP3", "config"): ("PCAP-DNP3-CONFIG", "medium"),
+    ("DNP3", "file"): ("PCAP-DNP3-FILE", "medium"),
+    ("S7comm", "write"): ("PCAP-S7-WRITE", "medium"),
+    ("S7comm", "stop"): ("PCAP-S7-STOP", "high"),
+    ("S7comm", "program"): ("PCAP-S7-PROGRAM", "high"),
+    ("S7comm", "restart"): ("PCAP-S7-START", "high"),
+    ("S7comm", "auth"): ("PCAP-S7-PASSWORD", "high"),
+    ("S7comm", "time"): ("PCAP-S7-SET-CLOCK", "low"),
+    ("CIP", "write"): ("PCAP-CIP-WRITE", "medium"),
+    ("CIP", "restart"): ("PCAP-CIP-RESET", "high"),
+    ("CIP", "stop"): ("PCAP-CIP-STOP", "high"),
+    ("CIP", "config"): ("PCAP-CIP-CONFIG", "medium"),
+    ("EtherNet/IP", "recon"): ("PCAP-ENIP-RECON", "low"),
+}
+S7_UPLOAD = ("Start upload", "Upload", "End upload")
 CLEARTEXT_ADMIN = {"Telnet": "high", "FTP": "medium", "TFTP": "medium", "HTTP": "low", "VNC": "medium"}
 
 
@@ -153,6 +181,7 @@ class PcapParser:
         sv = Counter()
         vlans = Counter()
         modbus_fc = Counter()
+        commands = Counter()                     # (protocol, name, category, client, server)
         n = 0
         t_first = t_last = None
 
@@ -193,6 +222,8 @@ class PcapParser:
                 continue
 
             ihl = (pkt[off] & 0x0F) * 4
+            total = struct.unpack(">H", pkt[off + 2:off + 4])[0]
+            ip_end = off + total if 20 <= total <= len(pkt) - off else len(pkt)
             ipproto = pkt[off + 9]
             sip, dip = _ip(pkt[off + 12:off + 16]), _ip(pkt[off + 16:off + 20])
             hosts[sip]["macs"].add(_mac(src))
@@ -213,6 +244,13 @@ class PcapParser:
                 hosts[server]["serves"].add(svc)
                 hosts[client]["talks"].add(svc)
                 conv[(client, server, svc)] += 1
+                if ipproto == 6 and len(pkt) >= t + 13:
+                    l4_payload = pkt[t + (pkt[t + 12] >> 4) * 4:ip_end]
+                else:
+                    l4_payload = pkt[t + 8:ip_end]
+                if l4_payload:
+                    for c in decode_commands(ipproto, sp, dp, l4_payload):
+                        commands[(c.protocol, c.name, c.category, client, server)] += 1
                 if ipproto == 6 and port == 502 and dp == 502:
                     doff = (pkt[t + 12] >> 4) * 4
                     p = pkt[t + doff:]
@@ -233,7 +271,13 @@ class PcapParser:
             "top_conversations": [{"client": c, "server": s, "service": p, "packets": v}
                                   for (c, s, p), v in conv.most_common(50)],
             "modbus_function_codes": {str(k): v for k, v in sorted(modbus_fc.items())},
+            "ot_commands": [{"protocol": p, "command": n, "category": c, "client": cl, "server": sv, "count": v}
+                            for (p, n, c, cl, sv), v in commands.most_common(200)],
         })
+        senders = defaultdict(set)
+        for (p, n, c, cl, sv), v in commands.items():
+            if c not in ("recon", "time", "other"):
+                senders[cl].add(f"{p} {c}")
 
         for ip, h in sorted(hosts.items(), key=lambda kv: -kv[1]["pkts"]):
             if not (h["serves"] or h["talks"]):
@@ -241,7 +285,8 @@ class PcapParser:
             rec.assets.append(Asset(
                 name=ip, kind="Host", ip=ip, mac=", ".join(sorted(h["macs"]))[:60],
                 protocols=sorted(h["serves"] | h["talks"]), source=rec.path,
-                extra={"serves": sorted(h["serves"]), "client_of": sorted(h["talks"]), "packets": h["pkts"]},
+                extra={"serves": sorted(h["serves"]), "client_of": sorted(h["talks"]), "packets": h["pkts"],
+                       **({"sends_commands": sorted(senders[ip])} if ip in senders else {})},
             ))
             for svc in h["serves"]:
                 if svc in CLEARTEXT_ADMIN:
@@ -267,3 +312,34 @@ class PcapParser:
                 rec.findings.append(Finding("high", "PCAP-GOOSE-APPID-DUP",
                                             f"GOOSE APPID {appid} sent by multiple MACs: {', '.join(sorted(srcs))}",
                                             rec.path))
+        rec.findings.extend(_command_findings(commands, rec.path))
+
+
+def _command_findings(commands: Counter, src: str) -> list[Finding]:
+    groups: dict[tuple[str, str], dict] = {}
+    for (proto, name, cat, client, server), n in commands.items():
+        key = COMMAND_RULES.get((proto, cat))
+        if proto == "S7comm" and name in S7_UPLOAD:
+            key = ("PCAP-S7-UPLOAD", "medium")
+        elif proto == "S7comm" and cat == "recon":
+            key = ("PCAP-S7-RECON", "low")
+        if not key:
+            continue
+        g = groups.setdefault(key, {"names": Counter(), "pairs": set(), "proto": proto})
+        g["names"][name] += n
+        g["pairs"].add(f"{client} -> {server}")
+    out = []
+    for (rule, sev), g in sorted(groups.items(), key=lambda kv: kv[0][0]):
+        what = ", ".join(f"{k} x{v}" for k, v in g["names"].most_common(5))
+        pairs = sorted(g["pairs"])
+        who = ", ".join(pairs[:4]) + (f" (+{len(pairs) - 4} more)" if len(pairs) > 4 else "")
+        advice = ("verify the source is an authorised engineering station" if sev == "low" else
+                  "verify the sender is an authorised master/engineering station and the action was planned")
+        out.append(Finding(sev, rule, f"{g['proto']}: {what} [{who}]; {advice}", src))
+    dnp3_cmd = any(p == "DNP3" and c in ("control", "write", "restart", "stop", "program", "config", "file")
+                   for (p, _n, c, _cl, _sv) in commands)
+    dnp3_auth = any(p == "DNP3" and c == "auth" for (p, _n, c, _cl, _sv) in commands)
+    if dnp3_cmd and not dnp3_auth:
+        out.append(Finding("info", "PCAP-DNP3-NO-SA",
+                           "DNP3 commands observed without Secure Authentication (IEEE 1815 SAv5) messages", src))
+    return out

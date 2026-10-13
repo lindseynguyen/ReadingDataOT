@@ -1,0 +1,18 @@
+#
+# RUGGEDCOM ROS configuration export (synthetic sample, not a real device)
+#
+# System Identification
+System Name,Location,Contact
+"BAY3-RSG",Substation demo,ops
+# Firmware
+Firmware Version,"5.6.0"
+# IP Services
+Telnet Sessions Allowed,Enabled
+Web Server Users Allowed,Enabled
+# IP Interfaces
+Type,ID,Mgmt,IP Address Type,IP Address,Subnet
+VLAN,1,Yes,Static,10.60.0.5,255.255.255.0
+# SNMP Users
+Community,public
+# Passwords
+admin,admin

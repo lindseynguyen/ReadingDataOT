@@ -28,3 +28,17 @@ def safe_parse(source):
     if _defused_parse is None:
         raise InsecureXMLParserError(MISSING_MSG)
     return _defused_parse(source)
+
+
+try:
+    from defusedxml.ElementTree import iterparse as _defused_iterparse  # type: ignore
+except ImportError:  # pragma: no cover
+    _defused_iterparse = None
+
+
+def safe_iterparse(source, events=("start", "end")):
+    """Streaming variant of safe_parse for very large files (SCD of a whole
+    substation can be hundreds of MB). Same fail-closed behaviour."""
+    if _defused_iterparse is None or _defused_parse is None:
+        raise InsecureXMLParserError(MISSING_MSG)
+    return _defused_iterparse(source, events=events)

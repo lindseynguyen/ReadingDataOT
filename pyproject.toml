@@ -21,7 +21,7 @@ dependencies = ["defusedxml>=0.7", "pyyaml>=6"]
 
 [project.optional-dependencies]
 gui = ["PyQt5>=5.15"]
-dev = ["pytest>=7", "pyflakes"]
+dev = ["pytest>=7", "pyflakes", "hypothesis>=6", "pytest-cov>=4"]
 
 [project.urls]
 Homepage = "https://github.com/lindseynguyen/ReadingDataOT"
@@ -41,6 +41,15 @@ include = ["otinspect*"]
 
 [tool.setuptools.package-data]
 "otinspect.rules" = ["*.json", "*.yaml"]
+"otinspect.standards" = ["*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["otinspect"]
+omit = ["otinspect/gui/*"]          # needs a display; exercised manually and by the frozen-exe smoke test
+
+[tool.coverage.report]
+fail_under = 85
+show_missing = false

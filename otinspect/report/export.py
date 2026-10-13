@@ -9,6 +9,7 @@ import json
 import os
 
 from ..core.model import ScanResult
+from ..standards import attack_title, attack_url, sr_key, sr_title
 from .netmap import build_svg
 
 SEV_ORDER = {"high": 0, "medium": 1, "low": 2, "info": 3}
@@ -28,6 +29,8 @@ th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut)
 .medium{background:#fbe7c6;color:#7a4b00} .low{background:#dde9f7;color:#1c4a7a} .info{background:#e6e6e1;color:#444}
 @media print{body{background:#fff;color:#000} .wrap{overflow:visible}}
 .legend{font-size:12.5px;color:var(--mut);margin:6px 0 0} .legend i{display:inline-block;width:18px;height:10px;border-radius:3px;margin:0 4px 0 12px;vertical-align:middle}
+.ref{display:inline-block;font:11.5px ui-monospace,Consolas,monospace;padding:0 5px;margin:1px 3px 1px 0;border:1px solid var(--line);border-radius:4px;white-space:nowrap;color:var(--fg);text-decoration:none}
+.att{color:var(--acc)} .refs{min-width:130px}
 .add{color:#1e7a3c;font-weight:700} .rem{color:#b3261e;font-weight:700} .mod{color:#8a5a00;font-weight:700}
 """
 
@@ -61,14 +64,40 @@ def to_csv(res: ScanResult, out_dir: str) -> list[str]:
                         " ".join(a.protocols), a.source])
     with open(find_p, "w", newline="", encoding="utf-8-sig") as fh:
         w = csv.writer(fh)
-        w.writerow(["severity", "rule", "message", "asset", "source"])
+        w.writerow(["severity", "rule", "message", "asset", "source", "iec62443_3_3", "attack_ics"])
         for x in sorted(res.findings, key=lambda x: SEV_ORDER.get(x.severity, 9)):
-            w.writerow([x.severity, x.rule, x.message, x.asset, x.source])
+            w.writerow([x.severity, x.rule, x.message, x.asset, x.source, "; ".join(x.iec62443), "; ".join(x.attack)])
     return [files_p, assets_p, find_p]
 
 
 def _e(v) -> str:
     return html.escape(str(v if v is not None else ""))
+
+
+def _refs(x) -> str:
+    """IEC 62443-3-3 SRs and ATT&CK for ICS techniques of a finding, with titles."""
+    srs = "".join(f"<span class=ref title='{_e(sr_title(s))}'>{_e(s)}</span>" for s in x.iec62443)
+    tts = "".join(f"<a class='ref att' href='{_e(attack_url(t))}' title='{_e(attack_title(t))}'>{_e(t)}</a>"
+                  for t in x.attack)
+    return srs + tts
+
+
+def _sr_coverage(findings) -> str:
+    rows: dict[str, dict[str, int]] = {}
+    for x in findings:
+        for s in x.iec62443:
+            r = rows.setdefault(s, {k: 0 for k in SEV_ORDER})
+            r[x.severity] = r.get(x.severity, 0) + 1
+    if not rows:
+        return ""
+    body = "".join(
+        f"<tr><td class=m>{_e(s)}</td><td>{_e(sr_title(s))}</td>"
+        + "".join(f"<td class=n>{c[k] or ''}</td>" for k in SEV_ORDER) + "</tr>"
+        for s, c in sorted(rows.items(), key=lambda kv: sr_key(kv[0])))
+    return ("<h2>IEC 62443-3-3 system requirements</h2><div class=wrap><table><tr><th>SR</th><th>Requirement</th>"
+            "<th class=n>High</th><th class=n>Medium</th><th class=n>Low</th><th class=n>Info</th></tr>"
+            f"{body}</table></div><div class=legend>Findings mapped to the SRs they give evidence against. "
+            "Guidance for the assessor, not a compliance verdict.</div>")
 
 
 def _human(n: int) -> str:
@@ -93,7 +122,8 @@ def to_html(res: ScanResult, path: str) -> None:
         for a in res.assets)
     find_rows = "".join(
         f"<tr><td><span class='sev {x.severity}'>{_e(x.severity)}</span></td><td class=m>{_e(x.rule)}</td>"
-        f"<td>{_e(x.message)}</td><td class=s>{_e(os.path.basename(x.source))}</td></tr>" for x in findings)
+        f"<td>{_e(x.message)}</td><td class=refs>{_refs(x)}</td>"
+        f"<td class=s>{_e(os.path.basename(x.source))}</td></tr>" for x in findings)
 
     goose_rows = ""
     for f in res.files:
@@ -131,7 +161,8 @@ def to_html(res: ScanResult, path: str) -> None:
 <div class=card><b>{sev_count['low'] + sev_count['info']}</b>low / info</div></div>
 {netmap}
 <h2>Asset inventory</h2><div class=wrap><table><tr><th>Name</th><th>Kind</th><th>Vendor</th><th>Model</th><th>Version</th><th>IP</th><th>MAC</th><th>Protocols</th><th>Source</th></tr>{asset_rows or '<tr><td colspan=9 class=mut>None</td></tr>'}</table></div>
-<h2>Findings</h2><div class=wrap><table><tr><th>Severity</th><th>Rule</th><th>Message</th><th>Source</th></tr>{find_rows or '<tr><td colspan=4 class=mut>None</td></tr>'}</table></div>
+<h2>Findings</h2><div class=wrap><table><tr><th>Severity</th><th>Rule</th><th>Message</th><th>IEC 62443 / ATT&amp;CK</th><th>Source</th></tr>{find_rows or '<tr><td colspan=5 class=mut>None</td></tr>'}</table></div>
+{_sr_coverage(findings)}
 {'<h2>GOOSE</h2><div class=wrap><table><tr><th>IED</th><th>Control block</th><th>APPID</th><th>MAC</th><th>VLAN</th><th>DataSet</th></tr>' + goose_rows + '</table></div>' if goose_rows else ''}
 {'<h2>Protocols observed in captures</h2><div class=wrap><table><tr><th>Protocol</th><th class=n>Packets</th><th>Capture</th></tr>' + proto_rows + '</table></div>' if proto_rows else ''}
 {'<h2>Disturbance records (COMTRADE)</h2><div class=wrap><table><tr><th>Station</th><th>Device</th><th>Trigger</th><th class=n>Channels</th><th class=n>Length</th><th>File</th></tr>' + cmt_rows + '</table></div>' if cmt_rows else ''}
@@ -150,14 +181,15 @@ def diff_to_html(diff, path: str) -> None:
         f"<tr><td class={sym[c.kind][1]}>{sym[c.kind][0]} {c.kind}</td><td>{_e(c.scope)}</td>"
         f"<td class=m>{_e(c.key)}</td><td class=s>{_e(c.detail)}</td></tr>" for c in diff.changes)
     finds = "".join(
-        f"<tr><td><span class='sev {x.severity}'>{_e(x.severity)}</span></td><td class=m>{_e(x.rule)}</td><td>{_e(x.message)}</td></tr>"
+        f"<tr><td><span class='sev {x.severity}'>{_e(x.severity)}</span></td><td class=m>{_e(x.rule)}</td><td>{_e(x.message)}</td>"
+        f"<td class=refs>{_refs(x)}</td></tr>"
         for x in sorted(diff.findings, key=lambda x: SEV_ORDER.get(x.severity, 9)))
     c = diff.counts()
     doc = _head("SCL Diff") + f"""<h1>SCL configuration diff</h1>
 <div class=mut>Old: {_e(diff.old)}<br>New: {_e(diff.new)}<br>Generated {now} · OTInspect</div>
 <div class=cards><div class=card><b>{c.get('added', 0)}</b>added</div><div class=card><b>{c.get('removed', 0)}</b>removed</div>
 <div class=card><b>{c.get('modified', 0)}</b>modified</div><div class=card><b>{len(diff.findings)}</b>findings</div></div>
-<h2>Findings</h2><div class=wrap><table><tr><th>Severity</th><th>Rule</th><th>Message</th></tr>{finds or '<tr><td colspan=3 class=mut>None</td></tr>'}</table></div>
+<h2>Findings</h2><div class=wrap><table><tr><th>Severity</th><th>Rule</th><th>Message</th><th>IEC 62443 / ATT&amp;CK</th></tr>{finds or '<tr><td colspan=4 class=mut>None</td></tr>'}</table></div>
 <h2>Changes</h2><div class=wrap><table><tr><th>Change</th><th>Scope</th><th>Item</th><th>Detail</th></tr>{rows or '<tr><td colspan=4 class=mut>No differences</td></tr>'}</table></div>
 </main></body></html>"""
     with open(path, "w", encoding="utf-8") as fh:

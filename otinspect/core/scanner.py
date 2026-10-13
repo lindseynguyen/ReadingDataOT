@@ -42,7 +42,16 @@ def iter_files(root: str, recursive: bool = True) -> Iterable[str]:
             yield os.path.join(dirpath, n)
 
 
-def analyze_file(path: str, display_path: str | None = None) -> FileRecord:
+def parser_limit(parser, max_file_mb: float | None = None) -> int | None:
+    """Size limit (bytes) for a parser: the global override if given, else the
+    parser's own default (None = no limit, the parser streams)."""
+    if max_file_mb is not None:
+        return int(max_file_mb * 1024 * 1024) if max_file_mb > 0 else None
+    return getattr(parser, "max_size", None)
+
+
+def analyze_file(path: str, display_path: str | None = None,
+                 max_file_mb: float | None = None) -> FileRecord:
     shown = display_path or path
     try:
         size = os.path.getsize(path)
@@ -58,6 +67,11 @@ def analyze_file(path: str, display_path: str | None = None) -> FileRecord:
         parser = find_parser(rec, ident)
         if parser:
             rec.parser = parser.name
+            limit = parser_limit(parser, max_file_mb)
+            if limit is not None and size > limit:
+                rec.error = (f"{parser.name}: not parsed, file is {size / 1048576:.1f} MB and the limit for "
+                             f"this parser is {limit / 1048576:.1f} MB (raise it with --max-file-mb)")
+                return rec
             try:
                 parser.parse(path, rec)
             except Exception as e:  # a failing parser must not break the whole scan
@@ -69,13 +83,14 @@ def analyze_file(path: str, display_path: str | None = None) -> FileRecord:
 
 def scan(root: str, recursive: bool = True, workers: int = 4,
          progress: ProgressCb | None = None, rules: list[str] | None = None,
-         builtin_rules: bool = True, advisories: str | None = None) -> ScanResult:
+         builtin_rules: bool = True, advisories: str | None = None,
+         max_file_mb: float | None = None) -> ScanResult:
     load_builtin()
     paths = list(iter_files(root, recursive))
     result = ScanResult(root=os.path.abspath(root))
     total = len(paths)
     with ThreadPoolExecutor(max_workers=max(1, workers)) as ex:
-        for i, rec in enumerate(ex.map(analyze_file, paths), 1):
+        for i, rec in enumerate(ex.map(lambda p: analyze_file(p, max_file_mb=max_file_mb), paths), 1):
             result.files.append(rec)
             if progress:
                 progress(i, total, rec.path)
@@ -93,6 +108,8 @@ def scan(root: str, recursive: bool = True, workers: int = 4,
             match_assets(result, load_db(advisories))
         except Exception as e:
             result.warnings.append(f"advisory DB {advisories}: {e}")
+    from ..standards import annotate
+    annotate(result.findings)
     return result
 
 

@@ -32,7 +32,7 @@ def find_parser(rec: FileRecord, ident: Identity) -> Parser | None:
 
 
 BUILTIN_PARSERS = ("scl", "comtrade", "pcap", "plc_l5x", "plc_iec", "devicedesc",
-                   "logfile", "archive", "binary")      # order = priority
+                   "netconfig", "logfile", "archive", "binary")      # order = priority
 
 
 def load_builtin() -> None:

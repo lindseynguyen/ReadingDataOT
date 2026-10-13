@@ -57,6 +57,7 @@ def _all_attr_values(el) -> list[tuple[str, str]]:
 @register
 class AutomationMLParser:
     name = "automationml"
+    max_size = 256 * 1024 * 1024  # whole document in memory
 
     def can_parse(self, rec: FileRecord, ident: Identity) -> bool:
         return "AutomationML" in rec.file_type
@@ -115,6 +116,7 @@ class AutomationMLParser:
 @register
 class XEFParser:
     name = "schneider-xef"
+    max_size = 256 * 1024 * 1024  # whole document in memory
 
     def can_parse(self, rec: FileRecord, ident: Identity) -> bool:
         return "Schneider" in rec.file_type and ident.is_text
@@ -155,6 +157,7 @@ class XEFParser:
 @register
 class PLCopenParser:
     name = "plcopen"
+    max_size = 256 * 1024 * 1024  # whole document in memory
 
     def can_parse(self, rec: FileRecord, ident: Identity) -> bool:
         return "PLCopen" in rec.file_type

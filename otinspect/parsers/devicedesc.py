@@ -35,6 +35,7 @@ def _strip(v: str) -> str:
 @register
 class DeviceDescParser:
     name = "devicedesc"
+    max_size = 32 * 1024 * 1024  # whole document in memory
 
     def can_parse(self, rec: FileRecord, ident: Identity) -> bool:
         return rec.category == "DeviceDesc" and ident.is_text

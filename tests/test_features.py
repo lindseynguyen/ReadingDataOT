@@ -3,7 +3,8 @@ import json
 import os
 import sys
 import tempfile
-import zipfile
+
+import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -192,3 +193,59 @@ def test_docs_rule_examples_run():
     msgs = [f.message for f in res.findings if f.rule == "SITE-GOOSE-WITHOUT-VLAN-POLICY"]
     assert msgs and "2 GOOSE control blocks" in msgs[0]
     assert any(f.rule == "SITE-NO-TELNET" for f in res.findings)
+
+
+# ---------------------------------------------------------------- large files / limits
+def _write_scd(path, n_ied, comm_last=False, payload=0):
+    comm = ['<Communication><SubNetwork name="S1">']
+    for i in range(n_ied):
+        comm.append(f'<ConnectedAP iedName="IED{i}" apName="AP1"><Address><P type="IP">10.0.{i // 250}.{i % 250 + 1}</P>'
+                    f'</Address></ConnectedAP>')
+    comm.append("</SubNetwork></Communication>")
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write('<?xml version="1.0"?><SCL xmlns="http://www.iec.ch/61850/2003/SCL"><Header id="t"/>')
+        if not comm_last:
+            fh.write("".join(comm))
+        for i in range(n_ied):
+            fh.write(f'<IED name="IED{i}" manufacturer="ACME" type="P1"><AccessPoint name="AP1"><Server>'
+                     f'<LDevice inst="LD0"><LN0 lnClass="LLN0" inst=""/>')
+            for j in range(payload):
+                fh.write(f'<LN lnClass="PTOC" inst="{j}"><DOI name="Op"><DAI name="d"><Val>{"x" * 200}</Val>'
+                         f'</DAI></DOI></LN>')
+            fh.write("</LDevice></Server></AccessPoint></IED>")
+        if comm_last:
+            fh.write("".join(comm))
+        fh.write("</SCL>")
+
+
+def test_scl_communication_after_ieds(tmp_path):
+    p = str(tmp_path / "order.scd")
+    _write_scd(p, 3, comm_last=True)
+    res = scan(p)
+    assert sorted(a.ip for a in res.assets) == ["10.0.0.1", "10.0.0.2", "10.0.0.3"]
+
+
+def test_large_scd_streams_with_bounded_memory(tmp_path):
+    """~40 MB SCD: the streaming parser must stay far below the file size in memory."""
+    import subprocess
+    p = str(tmp_path / "big.scd")
+    _write_scd(p, 3000, payload=40)
+    assert os.path.getsize(p) > 30 * 1024 * 1024
+    code = ("import resource,sys;from otinspect.core.scanner import analyze_file,load_builtin;load_builtin();"
+            f"r=analyze_file({p!r});assert len(r.assets)==3000,r.error;"
+            "print(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)")
+    import importlib.util
+    if importlib.util.find_spec("resource") is None:          # POSIX only
+        pytest.skip("resource module not available on this platform")
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, cwd=ROOT, check=True)
+    peak_mb = int(out.stdout.strip()) / 1024
+    assert peak_mb < 150, f"peak RSS {peak_mb:.0f} MB"
+
+
+def test_parser_size_limit(tmp_path):
+    p = str(tmp_path / "x.scd")
+    _write_scd(p, 5)
+    res = scan(p, max_file_mb=0.0001)
+    rec = res.files[0]
+    assert "not parsed" in rec.error and not rec.assets and rec.sha256
+    assert scan(p, max_file_mb=0).files[0].assets      # 0 = no limit

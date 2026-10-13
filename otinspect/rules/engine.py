@@ -171,6 +171,8 @@ def apply_rules(res: ScanResult, rules: list[dict]) -> int:
                     if r.get("url"):
                         msg += f" ({r['url']})"
                     f.findings.append(Finding(r.get("severity", "medium"), r["id"], msg, f.path,
-                                              getattr(obj, "name", "") if r["target"] == "asset" else ""))
+                                              getattr(obj, "name", "") if r["target"] == "asset" else "",
+                                              iec62443=list(r.get("iec62443", [])),
+                                              attack=list(r.get("attack", []))))
                     added += 1
     return added

@@ -1,0 +1,21 @@
+name: Feature request
+description: A new format, protocol, rule or report
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What do you need to find out, and in which situation?
+      placeholder: "During substation acceptance I need to check that ..."
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What OTInspect could do
+  - type: textarea
+    id: samples
+    attributes:
+      label: Public or anonymized sample files
+      description: Links to public samples or vendor documentation help a lot

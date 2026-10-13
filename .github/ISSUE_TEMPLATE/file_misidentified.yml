@@ -1,0 +1,83 @@
+name: File misidentified or parsed wrongly
+description: OTInspect gave a file the wrong category, missed devices or settings, or reported something wrong
+title: "[File] "
+labels: ["file-format", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks, this is the most valuable feedback for OTInspect.
+        **Do not attach files from a real site as they are.** See [Anonymizing a sample](https://github.com/lindseynguyen/ReadingDataOT/blob/main/CONTRIBUTING.md#anonymizing-a-sample).
+  - type: input
+    id: version
+    attributes:
+      label: OTInspect version
+      description: Output of `otinspect --version` (or the release you downloaded)
+      placeholder: "0.4.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: File type
+      options:
+        - IEC 61850 SCL (SCD / ICD / CID / IID / SSD / SED)
+        - COMTRADE
+        - Packet capture (PCAP / PCAPNG)
+        - PLC project or export (L5X, L5K, AML, XEF, PLCopen, TIA, other)
+        - Device description (GSDML, EDS, ESI, GSD)
+        - Switch / router / firewall configuration
+        - Firmware or binary
+        - Archive (ZIP, TIA .zap)
+        - Log or text
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: producer
+    attributes:
+      label: Tool and version that produced the file
+      placeholder: "e.g. Siemens TIA Portal V18 CAx export, RUGGEDCOM ROS 5.6, Wireshark 4.2, DIGSI 5.10"
+    validations:
+      required: true
+  - type: dropdown
+    id: problem
+    attributes:
+      label: What went wrong
+      multiple: true
+      options:
+        - Wrong category / file type
+        - Not parsed (error or no details)
+        - Devices or settings missing
+        - Wrong values (IP, version, model…)
+        - False positive finding
+        - Missed finding
+        - Crash, hang or very slow scan
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What OTInspect reported
+      description: Relevant part of the CLI output or the JSON report (anonymize it)
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: sample
+    attributes:
+      label: Minimal anonymized sample
+      description: Attach a reduced, anonymized file, or paste its structure (element names, header lines). Leave empty if you cannot share anything.
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Confirmation
+      options:
+        - label: Anything I attached or pasted is anonymized and contains no passwords, keys or real site data
+          required: true

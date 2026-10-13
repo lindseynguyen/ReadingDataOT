@@ -28,6 +28,8 @@ class Finding:
     message: str
     source: str = ""
     asset: str = ""
+    iec62443: list[str] = field(default_factory=list)   # IEC 62443-3-3 SRs, e.g. "SR 1.5"
+    attack: list[str] = field(default_factory=list)     # MITRE ATT&CK for ICS, e.g. "T0843"
 
 
 @dataclass

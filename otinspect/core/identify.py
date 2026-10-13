@@ -88,6 +88,9 @@ EXTENSION_MAP: dict[str, tuple[str, str]] = {
     ".csv": ("Data", "CSV (historian / export)"),
 }
 
+# Text files that may hold a switch/router/firewall configuration export
+NETCONFIG_EXTS = {".cfg", ".conf", ".config", ".txt", ".csv", ".ini", ".bak", ".rsc", ".cli", ".run", ""}
+
 # Siemens TIA Portal: .ap13 ... .ap20, .zap13 ...
 _TIA_RE = re.compile(r"^\.(z?ap)(\d{2})$")
 
@@ -177,6 +180,13 @@ def identify(path: str, head: bytes | None = None) -> Identity:
             lines = low.splitlines()
             if len(lines) > 1 and re.match(r"^\s*\d+\s*,\s*\d+a\s*,\s*\d+d\s*$", lines[1]):
                 return Identity("COMTRADE", "COMTRADE config (IEEE C37.111)", mime, True, ent)
+        # Network device configuration (switch / router / firewall)
+        if ext in NETCONFIG_EXTS:
+            from ..parsers.netconfig import detect
+            nc = detect(decode_head(head))
+            if nc:
+                return Identity("NetConfig", nc[1], mime, True, ent)
+        if ext == ".cfg":
             return Identity("Config", "Text configuration file", mime, True, ent)
         if ext == ".hex" and low.startswith(":"):
             return Identity("Firmware", "Intel HEX image", mime, True, ent)

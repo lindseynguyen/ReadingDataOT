@@ -14,7 +14,7 @@ from ..core.registry import find_parser, register
 MAX_MEMBERS = 5000
 MAX_RATIO = 200          # zip bomb guard
 NESTED_MAX = 50 * 1024 * 1024
-NESTED_CATEGORIES = {"SCL", "PLC", "DeviceDesc"}
+NESTED_CATEGORIES = {"SCL", "PLC", "DeviceDesc", "NetConfig"}
 
 
 @register

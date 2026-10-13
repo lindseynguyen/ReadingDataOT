@@ -12,6 +12,8 @@ rules:
     target: asset                     # asset (each device) | file (each scanned file)
     message: "{name} ({model}) runs firmware {version}; site baseline is 9.0"
     url: https://intranet.example/baseline   # optional, appended to the message
+    iec62443: [SR 3.4, SR 7.8]        # optional IEC 62443-3-3 SRs shown in reports / SARIF
+    attack: [T0866]                   # optional MITRE ATT&CK for ICS techniques
     match:                            # ALL conditions must hold
       vendor:  {regex: "(?i)siemens"}
       model:   {regex: "^7(UT|SA|SJ)8"}
@@ -27,6 +29,15 @@ rules:
 | `file` | `path`, `size`, `sha256`, `category`, `file_type`, `parser`, `error`, `summary.<key>` (e.g. `summary.entropy`, `summary.goose_count`, `summary.protocols`) |
 
 The message may reference any plain field of the target with `{field}`.
+
+## Standards mapping
+
+Every built-in finding carries the IEC 62443-3-3 system requirements it gives
+evidence against and the MITRE ATT&CK for ICS techniques it relates to (see
+`otinspect/standards/mappings.json`). Your own rules can set `iec62443` and
+`attack` lists; they appear in the HTML report (with an SR summary table), CSV,
+JSON and SARIF exactly like the built-in ones. The mapping supports the
+assessor; it is not a compliance verdict.
 
 ## Operators
 

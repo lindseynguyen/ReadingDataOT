@@ -1,0 +1,278 @@
+{
+ "_comment": "Public OT/ICS sample files used to validate OTInspect on real data. They are downloaded on demand (python tests/realworld/fetch.py), pinned by commit and SHA-256, and never committed to this repository. Copyright stays with the original authors; see each source repository for its license.",
+ "sources": {
+  "automayt/ICS-pcap": "Collection of public ICS packet captures (Wireshark wiki, Digital Bond, others)",
+  "openscd/open-scd": "OpenSCD test files (Apache-2.0)",
+  "dparrini/python-comtrade": "python-comtrade test samples (MIT)"
+ },
+ "files": [
+  {
+   "repo": "automayt/ICS-pcap",
+   "commit": "13b7ae335529146b40535c2d7aa756886040d8ad",
+   "path": "DNP3/DNP3-SelectOperate/DNP3-SelectOperate.pcap",
+   "sha256": "9cc5c193218d78afba25fec251c4e91f682066f076225c6eaa642e8b32d34b7e",
+   "lfs": true,
+   "expect": {
+    "category": "PCAP",
+    "commands": [
+     "DNP3 SELECT",
+     "DNP3 OPERATE"
+    ],
+    "rules": [
+     "PCAP-DNP3-CONTROL",
+     "PCAP-DNP3-NO-SA"
+    ]
+   }
+  },
+  {
+   "repo": "automayt/ICS-pcap",
+   "commit": "13b7ae335529146b40535c2d7aa756886040d8ad",
+   "path": "DNP3/DNP3-Write/DNP3-Write.pcap",
+   "sha256": "b8aeabece2584bb6090f213a5a6e263e82d5308c48615c72718b11cc2437225d",
+   "lfs": true,
+   "expect": {
+    "category": "PCAP",
+    "commands": [
+     "DNP3 WRITE"
+    ],
+    "rules": [
+     "PCAP-DNP3-WRITE"
+    ]
+   }
+  },
+  {
+   "repo": "automayt/ICS-pcap",
+   "commit": "13b7ae335529146b40535c2d7aa756886040d8ad",
+   "path": "DNP3/DNP3-Read/DNP3-Read.pcap",
+   "sha256": "66f460ea8d274085f7b478a73bab987d79cfe062653fb36bdefc5fe942240fbe",
+   "lfs": true,
+   "expect": {
+    "category": "PCAP",
+    "commands": [
+     "DNP3 READ"
+    ],
+    "no_rules": [
+     "PCAP-DNP3-CONTROL"
+    ]
+   }
+  },
+  {
+   "repo": "automayt/ICS-pcap",
+   "commit": "13b7ae335529146b40535c2d7aa756886040d8ad",
+   "path": "IEC 60870/iec104/iec104.pcap",
+   "sha256": "a78aa971adc51e54413a865937f1799ef57118d397cef57ccd93a358ed5b85d6",
+   "lfs": true,
+   "expect": {
+    "category": "PCAP",
+    "commands": [
+     "IEC 104 C_SC_NA_1 single command",
+     "IEC 104 C_DC_NA_1 double command",
+     "IEC 104 C_IC_NA_1 interrogation"
+    ],
+    "rules": [
+     "PCAP-IEC104-CONTROL"
+    ]
+   }
+  },
+  {
+   "repo": "automayt/ICS-pcap",
+   "commit": "13b7ae335529146b40535c2d7aa756886040d8ad",
+   "path": "S7/1-S7comm-VarService-Read-DB1DBD0/1-S7comm-VarService-Read-DB1DBD0.pcap",
+   "sha256": "0e9583b7e3d9df9f572e02e90329523281a9d149d9ee862ca16d0d4ad0c686b0",
+   "lfs": true,
+   "expect": {
+    "category": "PCAP",
+    "commands": [
+     "S7comm Read Var"
+    ],
+    "no_rules": [
+     "PCAP-S7-WRITE"
+    ]
+   }
+  },
+  {
+   "repo": "automayt/ICS-pcap",
+   "commit": "13b7ae335529146b40535c2d7aa756886040d8ad",
+   "path": "S7/4-S7comm-Download-DB1-with-password-request/4-S7comm-Download-DB1-with-password-request.pcap",
+   "sha256": "5aaed04c0d443c2e43df941dbf3ee732fb15ca0578874dfff4a7db402806dc3f",
+   "lfs": true,
+   "expect": {
+    "category": "PCAP",
+    "commands": [
+     "S7comm Request download",
+     "S7comm Set/enter PLC password"
+    ],
+    "rules": [
+     "PCAP-S7-PROGRAM",
+     "PCAP-S7-PASSWORD"
+    ]
+   }
+  },
+  {
+   "repo": "automayt/ICS-pcap",
+   "commit": "13b7ae335529146b40535c2d7aa756886040d8ad",
+   "path": "S7/S7-1200-Uploading-OB1-TIAV12/S7-1200-Uploading-OB1-TIAV12.pcap",
+   "sha256": "73e4b36469447e0fd45ccd38ca0583fbe60f6df27372b1ca11066e335deb650e",
+   "lfs": true,
+   "expect": {
+    "category": "PCAP",
+    "commands": [
+     "S7comm-plus S7comm-plus session (TIA Portal / S7-1200/1500)"
+    ]
+   }
+  },
+  {
+   "repo": "automayt/ICS-pcap",
+   "commit": "13b7ae335529146b40535c2d7aa756886040d8ad",
+   "path": "EIP/EIP-RebootorRestart/EIP-RebootorRestart.pcap",
+   "sha256": "57af017500d9c00d0d9e45e2e9c6a489be0f840efa1db08d86d3cebae9c67cb2",
+   "lfs": true,
+   "expect": {
+    "category": "PCAP",
+    "commands": [
+     "CIP Stop (class 0x8E)",
+     "CIP Start (class 0x8E)"
+    ],
+    "rules": [
+     "PCAP-CIP-STOP",
+     "PCAP-CIP-RESET"
+    ]
+   }
+  },
+  {
+   "repo": "automayt/ICS-pcap",
+   "commit": "13b7ae335529146b40535c2d7aa756886040d8ad",
+   "path": "EIP/EIP-FirmwareChange/EIP-FirmwareChange.pcap",
+   "sha256": "3d0f3ea89f8eb56c379c56a915cfd9c469f61f0ee690c66234a92d9c88e37201",
+   "lfs": true,
+   "expect": {
+    "category": "PCAP",
+    "commands": [
+     "CIP Reset (Identity)"
+    ],
+    "rules": [
+     "PCAP-CIP-RESET"
+    ]
+   }
+  },
+  {
+   "repo": "automayt/ICS-pcap",
+   "commit": "13b7ae335529146b40535c2d7aa756886040d8ad",
+   "path": "EIP/EIP-RemoteModeChangeAttempt/EIP-RemoteModeChangeAttempt.pcap",
+   "sha256": "71aec9602f668ec7505d1d0e63d037213bfcd555ce3e7eca257b475bbe9cbe7c",
+   "lfs": true,
+   "expect": {
+    "category": "PCAP",
+    "rules": [
+     "PCAP-CIP-STOP"
+    ]
+   }
+  },
+  {
+   "repo": "automayt/ICS-pcap",
+   "commit": "13b7ae335529146b40535c2d7aa756886040d8ad",
+   "path": "MODBUS/Modbus/Modbus.pcap",
+   "sha256": "9e055a2d15a8e447be131002137341ae5f8f8b91b64576cd2fdbd854e141373e",
+   "lfs": true,
+   "expect": {
+    "category": "PCAP",
+    "no_rules": [
+     "PCAP-MODBUS-WRITE"
+    ]
+   }
+  },
+  {
+   "repo": "openscd/open-scd",
+   "commit": "ce61ffe85d37f07db17062efc348028d4a24f3d8",
+   "path": "packages/openscd/test/testfiles/valid2007B4.scd",
+   "sha256": "a0a5b2917b915f3bbbb54fef1ab6aa7618574d852dbefbb4e84cc3f3194ac4e6",
+   "lfs": false,
+   "expect": {
+    "category": "SCL",
+    "assets": [
+     "IED1",
+     "IED2",
+     "IED3"
+    ],
+    "rules": [
+     "SCL-GW-OUTSIDE"
+    ]
+   }
+  },
+  {
+   "repo": "openscd/open-scd",
+   "commit": "ce61ffe85d37f07db17062efc348028d4a24f3d8",
+   "path": "packages/openscd/test/testfiles/editors/LaterBindingGOOSE-LGOS.scd",
+   "sha256": "115019911f1f4f536af792046a42dd6e0d8e917c6305881fa4ae51b7328c9b39",
+   "lfs": false,
+   "expect": {
+    "category": "SCL",
+    "min_assets": 10
+   }
+  },
+  {
+   "repo": "openscd/open-scd",
+   "commit": "ce61ffe85d37f07db17062efc348028d4a24f3d8",
+   "path": "packages/plugins/test/testfiles/104/valid-addresses.scd",
+   "sha256": "f9e72e593c928795c34a1c48e7d8cb247fbfa4bb8876299591977efea4f11db6",
+   "lfs": false,
+   "expect": {
+    "category": "SCL",
+    "assets": [
+     "B1",
+     "B2",
+     "B3"
+    ]
+   }
+  },
+  {
+   "repo": "dparrini/python-comtrade",
+   "commit": "fd8a60fba591f8aebcd849ed6b1585247bdfd95d",
+   "path": "tests/sample_files/sample_ascii.cfg",
+   "sha256": "45ff4ba994bd473f99d20d4d6a10890474600b60393b770a5afe110f4c991c47",
+   "lfs": false,
+   "expect": {
+    "category": "COMTRADE",
+    "summary": {
+     "station": "SMARTSTATION",
+     "analog_channels": 4
+    }
+   },
+   "note": "needs sample_ascii.dat"
+  },
+  {
+   "repo": "dparrini/python-comtrade",
+   "commit": "fd8a60fba591f8aebcd849ed6b1585247bdfd95d",
+   "path": "tests/sample_files/sample_ascii.dat",
+   "sha256": "8674c7619591861964fd0e894cbcdc7634547954636cac2eedec869ccf361743",
+   "lfs": false,
+   "expect": {
+    "category": "COMTRADE"
+   }
+  },
+  {
+   "repo": "dparrini/python-comtrade",
+   "commit": "fd8a60fba591f8aebcd849ed6b1585247bdfd95d",
+   "path": "tests/sample_files/sample_bin.cfg",
+   "sha256": "4e94ae8d7147a8695224b5639d826a2e5cec71016247ab1996774c4beadfcc62",
+   "lfs": false,
+   "expect": {
+    "category": "COMTRADE",
+    "summary": {
+     "analog_channels": 4
+    }
+   },
+   "note": "needs sample_bin.dat"
+  },
+  {
+   "repo": "dparrini/python-comtrade",
+   "commit": "fd8a60fba591f8aebcd849ed6b1585247bdfd95d",
+   "path": "tests/sample_files/sample_bin.dat",
+   "sha256": "b804e25150ccd63aafcda3494c45c9cc5149b65880be3b9b883107e260059131",
+   "lfs": false,
+   "expect": {
+    "category": "COMTRADE"
+   }
+  }
+ ]
+}

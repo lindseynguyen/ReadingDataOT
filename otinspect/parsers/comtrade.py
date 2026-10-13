@@ -35,6 +35,7 @@ def _f(v: str, default: float = 0.0) -> float:
 @register
 class ComtradeParser:
     name = "comtrade"
+    max_size = 64 * 1024 * 1024  # whole document in memory
 
     def can_parse(self, rec: FileRecord, ident: Identity) -> bool:
         return rec.category == "COMTRADE" and ident.is_text and rec.path.lower().endswith(".cfg")

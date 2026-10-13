@@ -191,6 +191,225 @@ PLCOPEN = """<?xml version="1.0" encoding="utf-8"?>
 """
 
 
+def _dnp3_crc(data: bytes) -> bytes:
+    crc = 0
+    for b in data:
+        crc ^= b
+        for _ in range(8):
+            crc = (crc >> 1) ^ 0xA6BC if crc & 1 else crc >> 1
+    return struct.pack("<H", ~crc & 0xFFFF)
+
+
+def _dnp3(fc, dst=10, src=1, objects=b""):
+    user = bytes([0xC0, 0xC0, fc]) + objects                # transport FIR|FIN, app ctrl, function
+    hdr = bytes([0x05, 0x64, 5 + len(user), 0xC4]) + struct.pack("<HH", dst, src)
+    body = b"".join(user[i:i + 16] + _dnp3_crc(user[i:i + 16]) for i in range(0, len(user), 16))
+    return hdr + _dnp3_crc(hdr) + body
+
+
+def _iec104(type_id, cot=6, ioa=1001, value=b"\x01", seq=0):
+    asdu = bytes([type_id, 1, cot, 0]) + struct.pack("<H", 1) + struct.pack("<I", ioa)[:3] + value
+    apdu = struct.pack("<HH", seq << 1, 0) + asdu
+    return bytes([0x68, len(apdu)]) + apdu
+
+
+def _s7(rosctr, param, data=b""):
+    hdr = bytes([0x32, rosctr, 0, 0]) + struct.pack(">HHH", 1, len(param), len(data))
+    cotp = bytes([0x02, 0xF0, 0x80])
+    body = cotp + hdr + param + data
+    return struct.pack(">BBH", 3, 0, 4 + len(body)) + body
+
+
+def _enip(cmd, data=b""):
+    return struct.pack("<HHII8sI", cmd, len(data), 0x1234, 0, b"OTINSPCT", 0) + data
+
+
+def _cip_rr(cip):
+    cpf = struct.pack("<IHH", 0, 10, 2) + struct.pack("<HH", 0, 0) + struct.pack("<HH", 0xB2, len(cip)) + cip
+    return _enip(0x006F, cpf)
+
+
+def _cip_tag_write(tag, value):
+    t = tag.encode()
+    seg = bytes([0x91, len(t)]) + t + (b"\x00" if len(t) % 2 else b"")
+    return bytes([0x4D, len(seg) // 2]) + seg + struct.pack("<HH", 0xC3, 1) + value
+
+
+def _unconnected_send(inner):
+    path = bytes([0x20, 0x06, 0x24, 0x01])                 # Connection Manager, instance 1
+    return (bytes([0x52, len(path) // 2]) + path + bytes([0x0A, 0xF0]) + struct.pack("<H", len(inner)) + inner
+            + (b"\x00" if len(inner) % 2 else b"") + bytes([1, 0, 1, 0]))
+
+
+def pcap_commands():
+    """Control-centre capture with decoded OT commands (all addresses fabricated)."""
+    scada, rogue, eng = "10.30.0.10", "10.30.9.99", "10.30.0.50"
+    rtu, outst, s7plc, abplc = "10.30.1.20", "10.30.2.30", "10.30.3.40", "10.30.4.50"
+    mac = {scada: "00:1b:1b:00:01:10", rogue: "00:16:3e:00:09:99", eng: "00:1b:1b:00:01:50",
+           rtu: "00:30:a7:00:01:20", outst: "00:00:bc:00:02:30", s7plc: "00:1b:1b:00:03:40",
+           abplc: "00:00:bc:00:04:50"}
+    flows = [
+        (scada, rtu, 50100, 2404, b"\x68\x04\x07\x00\x00\x00"),               # STARTDT act
+        (scada, rtu, 50100, 2404, _iec104(100, value=b"\x14", ioa=0)),          # interrogation (routine)
+        (scada, rtu, 50100, 2404, _iec104(45, seq=1)),                          # single command
+        (scada, rtu, 50100, 2404, _iec104(46, seq=2, value=b"\x02")),           # double command
+        (rogue, rtu, 50200, 2404, _iec104(105, value=b"\x01", ioa=0)),          # reset process
+        (scada, outst, 50300, 20000, _dnp3(1, objects=b"\x3c\x02\x06")),         # read class 1 (routine)
+        (scada, outst, 50300, 20000, _dnp3(5, objects=b"\x0c\x01\x28\x01\x00\x00\x00\x03\x01\x64\x00\x00\x00\x00\x00\x00\x00\x00")),
+        (rogue, outst, 50301, 20000, _dnp3(13)),                                 # cold restart
+        (eng, s7plc, 50400, 102, _s7(1, bytes([0xF0, 0, 0, 1, 0, 1, 0x01, 0xE0]))),                 # setup comm
+        (eng, s7plc, 50400, 102, _s7(7, bytes([0, 1, 0x12, 4, 0x11, 0x44, 0x01, 0]), b"\xff\x09\x00\x04\x00\x11\x00\x00")),  # read SZL
+        (eng, s7plc, 50400, 102, _s7(1, bytes([0x05, 1, 0x12, 0x0A, 0x10, 2, 0, 1, 0, 1, 0x84, 0, 0, 0]), b"\x00\x04\x00\x08\x01")),  # write var
+        (rogue, s7plc, 50401, 102, _s7(1, bytes([0x29, 0, 0, 0, 0, 0, 9]) + b"P_PROGRAM")),              # PLC stop
+        (eng, s7plc, 50400, 102, _s7(1, bytes([0x1A, 0, 1, 0, 0, 0, 0, 9]) + b"_0800001P")),            # request download
+        (eng, abplc, 50500, 44818, _enip(0x0063)),                                                       # ListIdentity
+        (scada, abplc, 50501, 44818, _cip_rr(_unconnected_send(_cip_tag_write("Pump1_Speed", b"\x10\x00")))),
+        (rogue, abplc, 50502, 44818, _cip_rr(bytes([0x05, 0x02, 0x20, 0x01, 0x24, 0x01]))),           # Identity Reset
+    ]
+    pkts = []
+    for src, dst, sp, dp, payload in flows:
+        pkts.append(_eth(mac[dst], mac[src], 0x0800, _ipv4(src, dst, 6, _tcp(sp, dp, payload))))
+    with open(os.path.join(HERE, "control_center.pcap"), "wb") as fh:
+        fh.write(struct.pack("<IHHiIII", 0xA1B2C3D4, 2, 4, 0, 0, 65535, 1))
+        for i, p in enumerate(pkts):
+            fh.write(struct.pack("<IIII", 1788100000 + i, 0, len(p), len(p)) + p)
+
+
+STRATIX_CFG = """!
+! Last configuration change at 09:12:44 UTC Mon Sep 7 2026 by admin
+! Stratix 5700 cell/area zone switch (synthetic sample)
+version 15.2
+service timestamps log datetime msec
+no service password-encryption
+!
+hostname CELL2-STRATIX
+!
+enable password 7 0822455D0A16
+username maint privilege 15 password 0 Maint2026
+!
+vlan 10
+ name CONTROL
+vlan 20
+ name SAFETY
+!
+interface FastEthernet1/1
+ description PLC-L1 (synthetic)
+ switchport access vlan 10
+ switchport mode access
+!
+interface FastEthernet1/2
+ description HMI-L1
+ switchport access vlan 10
+ switchport mode access
+!
+interface GigabitEthernet1/1
+ description Uplink to distribution
+ switchport mode trunk
+!
+interface Vlan1
+ ip address 10.40.0.2 255.255.255.0
+!
+ip http server
+ip http secure-server
+snmp-server community public RO
+snmp-server community Pl4ntRW RW
+!
+line con 0
+line vty 0 4
+ password 7 104D000A0618
+ login
+ transport input telnet ssh
+line vty 5 15
+ login local
+ transport input ssh
+!
+end
+"""
+
+FORTI_CFG = """#config-version=FGR60F-7.2.8-FW-build1639-240313:opmode=0:vdom=0:user=admin
+#conf_file_ver=000000000000000
+#buildno=1639
+config system global
+    set hostname "SUBSTATION-FW1"
+    set timezone 57
+end
+config system interface
+    edit "wan1"
+        set ip 198.51.100.10 255.255.255.248
+        set allowaccess ping https ssh
+        set role wan
+    next
+    edit "internal"
+        set ip 10.50.0.1 255.255.255.0
+        set allowaccess ping https http telnet
+        set role lan
+    next
+end
+config system admin
+    edit "admin"
+        set accprofile "super_admin"
+    next
+    edit "vendor"
+        set trusthost1 10.50.0.0 255.255.255.0
+        set accprofile "prof_admin"
+    next
+end
+config system snmp community
+    edit 1
+        set name "public"
+    next
+end
+config firewall policy
+    edit 1
+        set name "temp-commissioning"
+        set srcintf "internal"
+        set dstintf "wan1"
+        set action accept
+        set srcaddr "all"
+        set dstaddr "all"
+        set service "ALL"
+        set logtraffic disable
+    next
+    edit 2
+        set name "scada-to-rtu"
+        set srcintf "internal"
+        set dstintf "internal"
+        set action accept
+        set srcaddr "SCADA"
+        set dstaddr "RTU-NET"
+        set service "IEC-104"
+    next
+end
+"""
+
+RUGGEDCOM_CSV = """#
+# RUGGEDCOM ROS configuration export (synthetic sample, not a real device)
+#
+# System Identification
+System Name,Location,Contact
+"BAY3-RSG",Substation demo,ops
+# Firmware
+Firmware Version,"5.6.0"
+# IP Services
+Telnet Sessions Allowed,Enabled
+Web Server Users Allowed,Enabled
+# IP Interfaces
+Type,ID,Mgmt,IP Address Type,IP Address,Subnet
+VLAN,1,Yes,Static,10.60.0.5,255.255.255.0
+# SNMP Users
+Community,public
+# Passwords
+admin,admin
+"""
+
+
+def netconfigs():
+    for name, body in (("stratix_cell2.cfg", STRATIX_CFG), ("fgr60f_substation.conf", FORTI_CFG),
+                       ("ruggedcom_bay3.csv", RUGGEDCOM_CSV)):
+        with open(os.path.join(HERE, name), "w", encoding="utf-8", newline="\n") as fh:
+            fh.write(body)
+
+
 def engineering():
     with open(os.path.join(HERE, "line1_hw.aml"), "w", encoding="utf-8") as fh:
         fh.write(AML)
@@ -205,5 +424,5 @@ def engineering():
 
 
 if __name__ == "__main__":
-    comtrade(); pcap(); l5x(); eds(); scd_v2(); engineering()
+    comtrade(); pcap(); pcap_commands(); netconfigs(); l5x(); eds(); scd_v2(); engineering()
     print("samples regenerated")

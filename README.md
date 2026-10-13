@@ -4,7 +4,7 @@ File inventory and analysis for OT/ICS environments. Point it at a folder (a sub
 
 It only **reads files**. It never connects to devices.
 
-> **Status: beta.** Tested on synthetic samples, fuzzed and hostile inputs, Windows and Linux. Real-world files from more vendors are the next validation step; please open an issue if a file is misidentified or parsed wrongly.
+> **Status: beta.** Tested on synthetic samples, public real-world captures and SCL files, fuzzed and hostile inputs, on Windows and Linux. Please open an issue if a file is misidentified or parsed wrongly.
 
 ![OTInspect HTML report: summary cards and network map](docs/images/report-overview.png)
 
@@ -55,24 +55,38 @@ Verify the download with `SHA256SUMS.txt`. Windows SmartScreen may warn because 
 |---|---|---|
 | **IEC 61850** | SCD, ICD, CID, IID, SSD, SED | IEDs (vendor, model, configVersion, IP/subnet/gateway/MAC), LDevice / LN0 / LN, GOOSE & SV (APPID, MAC, VLAN, DataSet), ReportControl, voltage levels and bays |
 | **Disturbance records** | COMTRADE `.cfg` + `.dat/.hdr/.inf` (C37.111-1991/1999/2013) | Station, recording device, analog/digital channels with units and CT/VT ratios, sample rates, start/trigger time, duration, `.dat` size check |
-| **Network captures** | PCAP, PCAPNG (pure Python) | L2 protocols (GOOSE, SV, PROFINET, EtherCAT, PTP, LLDP), IP-based OT protocols (MMS/S7comm, IEC 104, Modbus/TCP, DNP3, EtherNet/IP, OPC UA, BACnet, FINS, CODESYS…), VLANs, GOOSE streams with gocbRef, host inventory, top conversations, Modbus function codes |
+| **Network captures** | PCAP, PCAPNG (pure Python) | L2 protocols (GOOSE, SV, PROFINET, EtherCAT, PTP, LLDP), IP-based OT protocols (MMS/S7comm, IEC 104, Modbus/TCP, DNP3, EtherNet/IP, OPC UA, BACnet, FINS, CODESYS…), VLANs, GOOSE streams with gocbRef, host inventory, top conversations, Modbus function codes, and **decoded OT commands**: who sent which control, write, stop, restart, download or password command to which device (see below) |
+| **Network devices** | Cisco IOS / IOS-XE (incl. Cisco IE, Rockwell Stratix), Fortinet FortiOS (incl. FortiGate Rugged); RUGGEDCOM, Hirschmann, Moxa, Westermo, Phoenix Contact, SCALANCE… (heuristic) | Hostname, version, management IP, interfaces, VLANs, firewall policies; hardening checks |
 | **PLC (Rockwell)** | `.L5X`, `.L5K` | Controller, processor, firmware, I/O and network modules with IPs, programs/routines/tags, AOIs, tasks |
 | **Device descriptions** | GSDML, EDS, ESI, GSD | Vendor, product, order number, hardware/software release |
 | **Logs / configs** | text logs, `.cfg`, `.ini`, CSV… | error/warning/alarm/auth counts, time range, top IPs, cleartext passwords / SNMP communities / private keys (masked) |
 | **Firmware / binaries** | BIN, HEX, SREC, ELF, SquashFS, uImage… | per-block entropy, embedded signatures, interesting strings, Intel HEX address range |
 | **Archives** | ZIP, Siemens TIA `.zapXX` | members identified in place (no extraction), zip-bomb and path-traversal guards |
-| **Identified only** | Siemens TIA/STEP 7, Rockwell `.ACD`, Schneider, CODESYS, ABB PCM600, WinCC, FactoryTalk, EVTX, OPC UA NodeSet, PLCopen XML | category and description |
-
 | **Engineering exports** | AutomationML / CAEX `.aml` (Siemens TIA hardware export), Schneider `.xef`, PLCopen XML | Devices with order numbers, firmware and IPs; application/project info, POUs and sections by language, tasks, variables |
+| **Identified only** | Siemens TIA/STEP 7, Rockwell `.ACD`, Schneider, CODESYS, ABB PCM600, WinCC, FactoryTalk, EVTX, OPC UA NodeSet, PLCopen XML | category and description |
 
 Supported files inside ZIP archives (contractor handover packages, TIA `.zapXX`) are parsed in place.
 
-Identification uses magic bytes, content (XML namespaces, COMTRADE header layout) and extensions; `python-magic` is not required.
+Identification uses magic bytes, content (XML namespaces, COMTRADE header layout, device configuration syntax) and extensions; `python-magic` is not required.
+
+Large files are handled in bounded memory: SCL is parsed as a stream (a 74 MB SCD peaks around 50 MB of RAM instead of 400 MB), captures are memory-mapped, and each parser has a size limit (SCL 2 GB, PLC exports 256 MB, device descriptions 32 MB). Files above the limit are still hashed and identified; raise or remove the limit with `--max-file-mb` (`0` = no limit).
+
+### OT commands in captures
+
+| Protocol | Decoded | Flagged |
+|---|---|---|
+| IEC 60870-5-104 | ASDU type and cause of transmission in the control direction | single/double/regulating commands and setpoints (`PCAP-IEC104-CONTROL`), reset process (`-RESET`), parameter loading, file transfer |
+| DNP3 | application function of each request | select/operate/direct operate, write, cold/warm restart, stop/start application, file and configuration functions; commands without Secure Authentication |
+| S7comm | job and user-data functions | write var, PLC stop, download, PI services (start, insert/delete block), upload, password functions, SZL/block reconnaissance; S7comm-plus sessions noted |
+| EtherNet/IP + CIP | encapsulation command, CIP service and path (Unconnected Send unwrapped) | tag writes, Set_Attribute, Reset/Start/Stop services, ListIdentity reconnaissance |
+
+Routine polling (interrogation, reads, time sync) is summarised in the report but not flagged. Each finding names the sender and the target, so a command from an unexpected host stands out.
 
 ## Risk rules
 
 - **SCL**: duplicate IPs, duplicate GOOSE/SV APPID or destination MAC, default/special IPs, gateway outside subnet, GOOSE without VLAN, control blocks without an address, IEC 62351-6 reminder
-- **PCAP**: Telnet/FTP/TFTP/HTTP/VNC servers, Modbus write and diagnostic requests, GOOSE APPID sent by several MACs, untagged GOOSE
+- **PCAP**: Telnet/FTP/TFTP/HTTP/VNC servers, Modbus write and diagnostic requests, GOOSE APPID sent by several MACs, untagged GOOSE, and the OT commands above
+- **Network devices**: Telnet / HTTP management, SSHv1, cleartext or type 7 passwords, MD5 enable secret, default or read-write SNMP communities, management without ACL / trusted hosts, admin access on WAN interfaces, any-any firewall policies, missing remote logging and NTP, default credentials
 - **L5X**: credential-like tags, mostly Read/Write external tag access, no source protection, no FactoryTalk Security binding
 - **Text**: cleartext passwords, SNMP `public`/`private`, private keys
 - **Firmware**: passwd/shadow content, embedded PEM blocks
@@ -80,6 +94,40 @@ Identification uses magic bytes, content (XML namespaces, COMTRADE header layout
 - **XEF / PLCopen**: credential-like variables
 - **Your own rules** in YAML/JSON: site baselines, approved vendors, minimum firmware, forbidden protocols. See [docs/rules.md](docs/rules.md)
 - **Advisories (offline)**: assets matched against CISA ICS advisories imported from CSAF 2.0 (vendor + product + version range), reported as *possible* matches to verify
+
+## IEC 62443 and MITRE ATT&CK for ICS
+
+Every finding is mapped to the **IEC 62443-3-3 system requirements** it gives evidence against and the **MITRE ATT&CK for ICS** techniques it relates to. For example, a PLC stop command seen in a capture maps to SR 2.1 and T0881 / T0858, and an any-any firewall rule maps to SR 5.1 / SR 5.2. The HTML report shows the mapping per finding and a summary table per SR. The same data is in the JSON, CSV and SARIF exports. User rules can set their own mapping (see [docs/rules.md](docs/rules.md)).
+
+The mapping helps an assessor prioritise and write up findings. It is not a compliance verdict.
+
+## SARIF and CycloneDX
+
+```bash
+otinspect scan ./site-configs --sarif otinspect.sarif          # GitHub code scanning, any SARIF viewer
+otinspect scan D:\Substation_Backup --cyclonedx assets.cdx.json # CycloneDX 1.6 hardware/firmware BOM
+```
+
+- **SARIF 2.1.0**: one result per finding with severity, IEC 62443 / ATT&CK tags and stable fingerprints. If you keep switch, firewall or SCL files in a Git repository, upload it to GitHub code scanning so findings appear as alerts on the files:
+
+  ```yaml
+  # .github/workflows/otinspect.yml
+  on: [push, pull_request]
+  permissions: { contents: read, security-events: write }
+  jobs:
+    scan:
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v4
+        - uses: actions/setup-python@v5
+          with: { python-version: "3.12" }
+        - run: pip install "otinspect @ git+https://github.com/lindseynguyen/ReadingDataOT@v0.4.0"
+        - run: otinspect scan . -q --sarif otinspect.sarif
+        - uses: github/codeql-action/upload-sarif@v3
+          with: { sarif_file: otinspect.sarif }
+  ```
+
+- **CycloneDX 1.6**: discovered devices (with vendor, model, IP/MAC and protocols as properties) with their firmware as nested components, the analysed engineering files with SHA-256 hashes, and advisory matches as vulnerabilities. Validated against the official 1.6 schema.
 
 ## SCD diff
 
@@ -122,6 +170,7 @@ otinspect gui                   # or: python -m otinspect gui
 
 # Scan
 otinspect scan D:\Substation_Backup --html report.html --json report.json --csv out\
+otinspect scan D:\Substation_Backup --sarif report.sarif --cyclonedx assets.cdx.json
 otinspect scan ./project --rules site_rules.yaml --fail-on high   # exit code 2 on any high finding
 
 # Compare two SCD revisions
@@ -145,41 +194,53 @@ python -m otinspect scan samples --html demo.html
 
 ## Reports
 
-- **HTML**: self-contained and works offline; print to PDF from any browser. Sections: network map, assets, findings, GOOSE, observed protocols, COMTRADE records, file categories, full file list with SHA-256.
-- **JSON**: everything, including per-file details.
-- **CSV**: `files.csv`, `assets.csv`, `findings.csv`.
+- **HTML**: self-contained and works offline; print to PDF from any browser. Sections: network map, assets, findings with IEC 62443 / ATT&CK references, IEC 62443-3-3 SR summary, GOOSE, observed protocols, COMTRADE records, file categories, full file list with SHA-256.
+- **JSON**: everything, including per-file details and decoded OT commands.
+- **CSV**: `files.csv`, `assets.csv`, `findings.csv` (with `iec62443_3_3` and `attack_ics` columns).
+- **SARIF 2.1.0** and **CycloneDX 1.6**: see above.
 
 ## Architecture
 
 ```
 otinspect/
   core/      identify.py · scanner.py (recursion, hashing, threads, cross-reference) · registry.py · model.py · safexml.py (hardened XML)
-  parsers/   scl · comtrade · pcap · plc_l5x · plc_iec · devicedesc · logfile · archive · binary
+  parsers/   scl (streaming) · comtrade · pcap · otcmd (OT command decoders) · plc_l5x · plc_iec · devicedesc
+             netconfig (switch / router / firewall) · logfile · archive · binary
   diff/      scd_diff.py
   rules/     engine.py (YAML/JSON rules) · advisories.py (CSAF import + matching) · builtin.json
-  report/    export.py (HTML / JSON / CSV) · netmap.py (SVG network map)
+  standards/ mappings.json (finding -> IEC 62443-3-3 SR / ATT&CK for ICS) · lookup and annotation
+  report/    export.py (HTML / JSON / CSV) · interop.py (SARIF / CycloneDX) · netmap.py (SVG network map)
   gui/       app.py (PyQt5)
   cli.py
 packaging/   PyInstaller spec for the Windows executables
 ```
 
-To add a format, create a module in `otinspect/parsers/` with a class exposing `can_parse()` and `parse()`, decorate it with `@register`, and import it in `core/registry.py → load_builtin()`. Parsers are tried in import order.
+To add a format, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Tests
 
 ```bash
-pip install ".[dev]" && python -m pytest -q
+pip install -e ".[dev]"
+python -m pytest -q --cov                    # unit, robustness and Hypothesis fuzz tests, coverage >= 85 %
+python tests/realworld/fetch.py              # optional: download public real-world samples
+python -m pytest -q tests/test_realworld.py
 ```
 
-The suite covers every parser, diff, rules, advisories and the reports, plus robustness: random garbage under every OT extension, truncated and bit-flipped samples, XML entity bombs, XXE, zip slip, zip bombs, Unicode paths and a 1,500-file tree. CI runs it on Windows and Linux with Python 3.9 and 3.13.
+- **Unit tests** for every parser, the command decoders, network configurations, diff, rules, advisories, standards mapping and all report formats (SARIF and CycloneDX are checked against the official schemas).
+- **Robustness**: random garbage under every OT extension, truncated and bit-flipped samples, XML entity bombs, XXE, fail-closed XML without defusedxml, zip slip, zip bombs, Unicode paths, a 1,500-file tree and a 40 MB SCD with a memory ceiling.
+- **Fuzzing** with [Hypothesis](https://hypothesis.readthedocs.io/): protocol decoders, the PCAP parser, configuration parsers, file identification and version comparison must accept arbitrary input without raising.
+- **Real-world files**: captures from real PLCs and RTUs (DNP3, IEC 104, S7comm including a program download with password, EtherNet/IP stop/reset/firmware change, Modbus), SCL files from OpenSCD and COMTRADE from python-comtrade. They are listed in `tests/realworld/manifest.json`, pinned by commit and SHA-256, downloaded on demand and never committed.
+
+CI runs everything on Windows and Linux with Python 3.9 and 3.13, plus a real-world job. Coverage is measured without the GUI.
 
 ## Roadmap
 
 - GOOSE publisher/subscriber matrix from SCL `Inputs/ExtRef`
-- IEC 104 / DNP3 / S7comm deeper decoding in captures
+- MMS (IEC 61850) control and file services, OPC UA write/call, TCP reassembly for commands split across segments
+- Full parsers for RUGGEDCOM ROS/ROX, Hirschmann HiOS and Moxa configurations (heuristic today) as anonymized exports become available
 - More engineering formats (ABB PCM600, GE EnerVista, SEL AcSELerator) as sample files become available
 
-Contributions and (anonymized) sample files for unsupported formats are very welcome.
+Contributions and (anonymized) sample files for unsupported formats are very welcome; see [CONTRIBUTING.md](CONTRIBUTING.md) and the *File misidentified or parsed wrongly* issue template.
 
 ## Handling
 

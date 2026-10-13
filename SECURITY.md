@@ -6,7 +6,7 @@ OTInspect reads files that may come from untrusted sources (contractor handover 
 
 | Version | Supported |
 |---|---|
-| 0.3.x (latest release) | Yes |
+| 0.4.x (latest release) | Yes |
 | Older | No, please upgrade |
 
 ## Reporting a vulnerability

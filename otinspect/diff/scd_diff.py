@@ -154,6 +154,8 @@ def diff_scl(old_path: str, new_path: str) -> DiffResult:
     if ch and not any(c.scope == "Header" and c.key in ("header_version", "header_revision") for c in ch):
         res.findings.append(Finding("low", "DIFF-HEADER-NOT-BUMPED",
                                     "Configuration changed but Header version/revision did not", src))
+    from ..standards import annotate
+    annotate(res.findings)
     return res
 
 

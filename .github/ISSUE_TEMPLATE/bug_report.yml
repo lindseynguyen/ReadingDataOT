@@ -1,0 +1,42 @@
+name: Bug report
+description: Something else does not work (CLI, GUI, reports, install, Windows executables)
+title: "[Bug] "
+labels: ["bug", "triage"]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: OTInspect version
+      placeholder: "0.4.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How you run it
+      options:
+        - Windows executable (release zip)
+        - pip install from source
+        - python -m otinspect from a clone
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: OS and Python version
+      placeholder: "Windows 11, Python 3.12"
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: "otinspect scan samples --html r.html"
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: What happened and what you expected
+      description: Include the error message or traceback (anonymize paths if needed)
+      render: text
+    validations:
+      required: true

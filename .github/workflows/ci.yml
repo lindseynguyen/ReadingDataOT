@@ -24,10 +24,41 @@ jobs:
       - name: Install
         run: python -m pip install -e ".[dev]"
       - name: Lint
-        run: python -m pyflakes otinspect/core otinspect/parsers otinspect/report otinspect/gui otinspect/cli.py otinspect/diff/scd_diff.py otinspect/rules/engine.py otinspect/rules/advisories.py
-      - name: Tests
-        run: python -m pytest -q
+        run: python -m pyflakes otinspect tests
+      - name: Tests (with Hypothesis fuzzing and coverage)
+        env:
+          HYPOTHESIS_PROFILE: ci
+        run: python -m pytest -q --cov --cov-report=term --cov-report=xml
       - name: CLI smoke test
         run: |
           otinspect scan samples -q --html report.html --json report.json
           otinspect diff samples/substation_demo.scd samples/substation_demo_v2.scd
+          otinspect scan samples -q --sarif report.sarif --cyclonedx report.cdx.json
+      - name: Upload coverage report
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: coverage.xml
+
+  realworld:
+    name: Real-world samples
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install
+        run: python -m pip install -e ".[dev]"
+      - name: Cache public samples
+        uses: actions/cache@v4
+        with:
+          path: tests/realworld/.cache
+          key: realworld-${{ hashFiles('tests/realworld/manifest.json') }}
+      - name: Fetch public OT/ICS samples (pinned by commit and SHA-256)
+        run: python tests/realworld/fetch.py
+      - name: Test on real-world files
+        env:
+          OTINSPECT_REALWORLD: require
+        run: python -m pytest -q tests/test_realworld.py

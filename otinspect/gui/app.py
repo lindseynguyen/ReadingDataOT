@@ -148,7 +148,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.progress.setVisible(False)
         bot = QtWidgets.QHBoxLayout()
         for text, fn in (("Export HTML", self.export_html), ("Export JSON", self.export_json),
-                         ("Export CSV", self.export_csv), ("Compare SCD…", self.compare_scd),
+                         ("Export CSV", self.export_csv), ("Export SARIF / SBOM…", self.export_interop),
+                         ("Compare SCD…", self.compare_scd),
                          ("Advisory DB…", self.pick_advisories), ("Rules folder…", self.pick_rules)):
             b = QtWidgets.QPushButton(text)
             b.clicked.connect(fn)
@@ -265,7 +266,11 @@ class MainWindow(QtWidgets.QMainWindow):
         i = self._selected(self.t_find)
         if i is not None:
             f = self._findings[i]
-            self.detail.setPlainText(f"[{f.severity.upper()}] {f.rule}\n\n{f.message}\n\nAsset:  {f.asset}\nSource: {f.source}")
+            from ..standards import attack_title, sr_title
+            refs = "".join(f"\n  {s}  {sr_title(s)}" for s in f.iec62443)
+            refs += "".join(f"\n  {t}  {attack_title(t)}" for t in f.attack)
+            self.detail.setPlainText(f"[{f.severity.upper()}] {f.rule}\n\n{f.message}\n\nAsset:  {f.asset}\nSource: {f.source}"
+                                     + (f"\n\nIEC 62443-3-3 / ATT&CK for ICS:{refs}" if refs else ""))
 
     def apply_filter(self, text: str):
         text = text.lower().strip()
@@ -334,6 +339,21 @@ class MainWindow(QtWidgets.QMainWindow):
         p, _ = QtWidgets.QFileDialog.getSaveFileName(self, "Save JSON", "ot_report.json", "JSON (*.json)")
         if p:
             to_json(self.result, p)
+
+    def export_interop(self):
+        if not self._need():
+            return
+        p, flt = QtWidgets.QFileDialog.getSaveFileName(
+            self, "Save SARIF or CycloneDX", "otinspect.sarif",
+            "SARIF 2.1.0 (*.sarif);;CycloneDX 1.6 JSON (*.cdx.json)")
+        if not p:
+            return
+        from ..report.interop import to_cyclonedx, to_sarif
+        if "CycloneDX" in flt or p.endswith(".cdx.json"):
+            to_cyclonedx(self.result, p)
+        else:
+            to_sarif(self.result, p)
+        self.statusBar().showMessage(f"Saved {p}", 6000)
 
     def export_csv(self):
         if not self._need():
