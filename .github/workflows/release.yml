@@ -6,11 +6,17 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: write        # publish the GitHub release
+  id-token: write        # sign build-provenance attestations (Sigstore)
+  attestations: write    # store the attestations on GitHub
 
 jobs:
   windows-exe:
     runs-on: windows-latest
+    env:
+      # Authenticode signing through SignPath (free for open source). Skipped until the
+      # secret and variables exist: Settings -> Secrets and variables -> Actions.
+      SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -47,6 +53,52 @@ jobs:
       - name: Smoke test executables
         run: python packaging/smoke_test.py dist
 
+      # ---------------------------------------------------------------- code signing
+      - name: Upload unsigned executables for signing
+        id: unsigned
+        if: env.SIGNPATH_API_TOKEN != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-exe
+          path: |
+            dist/OTInspect.exe
+            dist/otinspect-cli.exe
+          if-no-files-found: error
+
+      - name: Sign with SignPath (Authenticode)
+        if: env.SIGNPATH_API_TOKEN != ''
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG || 'ReadingDataOT' }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG || 'release-signing' }}
+          artifact-configuration-slug: ${{ vars.SIGNPATH_ARTIFACT_CONFIGURATION_SLUG || 'initial' }}
+          github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 3600     # releases are approved manually
+          output-artifact-directory: signed
+
+      - name: Use signed executables and verify signatures
+        if: env.SIGNPATH_API_TOKEN != ''
+        shell: pwsh
+        run: |
+          Copy-Item signed\OTInspect.exe, signed\otinspect-cli.exe dist\ -Force
+          foreach ($f in "dist\OTInspect.exe", "dist\otinspect-cli.exe") {
+            $sig = Get-AuthenticodeSignature $f
+            "{0}: {1} / {2} / timestamp {3}" -f $f, $sig.Status, $sig.SignerCertificate.Subject, $sig.TimeStamperCertificate.Subject
+            if ($sig.Status -ne "Valid") { throw "$f is not validly signed: $($sig.StatusMessage)" }
+            if (-not $sig.TimeStamperCertificate) { throw "$f has no timestamp" }
+          }
+
+      - name: Smoke test signed executables
+        if: env.SIGNPATH_API_TOKEN != ''
+        run: python packaging/smoke_test.py dist
+
+      - name: Note unsigned build
+        if: env.SIGNPATH_API_TOKEN == ''
+        run: echo "::warning title=Unsigned build::SIGNPATH_API_TOKEN is not set; executables are not Authenticode-signed (build provenance is still attested)."
+
       - name: Package
         shell: pwsh
         run: |
@@ -59,6 +111,15 @@ jobs:
           Compress-Archive pkg\* "OTInspect-$v-windows-x64.zip"
           Get-FileHash "OTInspect-$v-windows-x64.zip" -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  OTInspect-$v-windows-x64.zip" } | Out-File -Encoding ascii SHA256SUMS.txt
           Get-Content SHA256SUMS.txt
+
+      # ---------------------------------------------------------------- provenance
+      - name: Attest build provenance (zip and executables)
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            OTInspect-*-windows-x64.zip
+            dist/OTInspect.exe
+            dist/otinspect-cli.exe
 
       - uses: actions/upload-artifact@v4
         with:
@@ -75,3 +136,12 @@ jobs:
             OTInspect-*-windows-x64.zip
             SHA256SUMS.txt
           generate_release_notes: true
+          body: |
+            ### Verify your download
+
+            1. Checksum: compare `Get-FileHash OTInspect-*-windows-x64.zip` with `SHA256SUMS.txt`.
+            2. Provenance: `gh attestation verify OTInspect-<version>-windows-x64.zip --repo ${{ github.repository }}`
+               proves the zip (and each `.exe` inside it) was built by this repository's release workflow from tag `${{ github.ref_name }}`.
+            3. Signature (when signed): right-click the `.exe` → Properties → Digital Signatures, or `Get-AuthenticodeSignature .\OTInspect.exe`.
+
+            See [docs/code-signing-policy.md](https://github.com/${{ github.repository }}/blob/main/docs/code-signing-policy.md).

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  SignPath artifact configuration for the OTInspect release executables.
+  Paste this into SignPath (Project > Artifact configurations) as the default configuration.
+  The GitHub action uploads OTInspect.exe and otinspect-cli.exe as one zip artifact,
+  so the root element is <zip-file>. Both files carry ProductName "OTInspect" and the
+  release version in their Windows version resource (set by the release workflow).
+-->
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <zip-file>
+    <pe-file path="OTInspect.exe" product-name="OTInspect">
+      <authenticode-sign />
+    </pe-file>
+    <pe-file path="otinspect-cli.exe" product-name="OTInspect">
+      <authenticode-sign />
+    </pe-file>
+  </zip-file>
+</artifact-configuration>

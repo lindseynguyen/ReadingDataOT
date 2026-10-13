@@ -47,7 +47,14 @@ Get `OTInspect-<version>-windows-x64.zip` from the [Releases](https://github.com
 - `OTInspect.exe`: graphical interface (drag a folder onto the window)
 - `otinspect-cli.exe`: command line, for scripts and scheduled checks
 
-Verify the download with `SHA256SUMS.txt`. Windows SmartScreen may warn because the executables are not code-signed; choose *More info → Run anyway* only if the checksum matches.
+Verify the download before running it:
+
+```powershell
+Get-FileHash .\OTInspect-<version>-windows-x64.zip            # compare with SHA256SUMS.txt
+gh attestation verify .\OTInspect-<version>-windows-x64.zip --repo lindseynguyen/ReadingDataOT
+```
+
+The attestation (from 0.4.1) proves the zip and each `.exe` were built by this repository's release workflow from the tagged source. Authenticode signing through the SignPath Foundation open-source program is being set up; until then Windows SmartScreen may warn, so choose *More info → Run anyway* only after the checks above pass. Details: [docs/code-signing-policy.md](docs/code-signing-policy.md).
 
 ## What it understands
 
@@ -121,7 +128,7 @@ otinspect scan D:\Substation_Backup --cyclonedx assets.cdx.json # CycloneDX 1.6 
         - uses: actions/checkout@v4
         - uses: actions/setup-python@v5
           with: { python-version: "3.12" }
-        - run: pip install "otinspect @ git+https://github.com/lindseynguyen/ReadingDataOT@v0.4.0"
+        - run: pip install "otinspect @ git+https://github.com/lindseynguyen/ReadingDataOT@v0.4.1"
         - run: otinspect scan . -q --sarif otinspect.sarif
         - uses: github/codeql-action/upload-sarif@v3
           with: { sarif_file: otinspect.sarif }

@@ -29,12 +29,12 @@ You should get a first response within 7 days. Once a fix is released, the advis
 - A crafted file that crashes, hangs, or exhausts memory during a scan
 - Script or HTML injection into the generated HTML report through file contents or names
 - Secrets (passwords, keys, SNMP communities) appearing unmasked in reports
-- Tampered or unverifiable release executables
+- Tampered or unverifiable release executables, or an attestation or signature that does not match this repository
 
 ## Out of scope
 
 - Findings about the OT devices or configurations that OTInspect reports on. Those belong to the device vendor or the asset owner.
-- Windows SmartScreen warnings about the unsigned executables (see the README for checksum verification)
+- Windows SmartScreen reputation warnings (see [docs/code-signing-policy.md](docs/code-signing-policy.md) for how to verify a download)
 - Issues that require an attacker who can already modify OTInspect's own code or Python environment
 
 ## Safe use

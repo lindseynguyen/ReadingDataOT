@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-13
+
+### Security
+- Release zip and executables carry GitHub build-provenance attestations (Sigstore); verify with `gh attestation verify`.
+- Release workflow ready for Authenticode signing through SignPath (enabled once the `SIGNPATH_API_TOKEN` secret is set): signed files are checked for a valid signature and timestamp and smoke-tested again before publishing.
+- Release notes include verification steps; new `docs/code-signing-policy.md`.
+
 ## [0.4.0] - 2026-10-13
 
 ### Added
@@ -58,7 +65,8 @@ All notable changes to this project are documented here. The format follows [Kee
 - Parsers for COMTRADE, PCAP/PCAPNG, Rockwell L5X/L5K, and GSDML/EDS/ESI/GSD device descriptions
 - Cross-reference of hosts seen in captures against configuration files (`XREF-UNDOCUMENTED-HOST`)
 
-[Unreleased]: https://github.com/lindseynguyen/ReadingDataOT/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/lindseynguyen/ReadingDataOT/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/lindseynguyen/ReadingDataOT/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/lindseynguyen/ReadingDataOT/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/lindseynguyen/ReadingDataOT/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/lindseynguyen/ReadingDataOT/releases/tag/v0.3.0
