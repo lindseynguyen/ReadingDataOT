@@ -261,6 +261,14 @@ To report a vulnerability in OTInspect itself (for example a file that crashes o
 
 See [CHANGELOG.md](CHANGELOG.md).
 
+## Related resources
+
+OTInspect tells you what is in the folder. Deciding what that means for risk is the assessor's job. If that is your work, these may help:
+
+- **[OT/ICS Security Quick Audit Checklist 2026](https://techsavant013.gumroad.com/l/ot-ics-quick-audit-checklist?utm_source=github&utm_medium=readme&utm_campaign=readingdataot)** (free, pay what you want): 35 evidence-based checks across 9 domains, mapped to IEC 62443.
+- **[IEC 62443 IC33 Risk Assessment Practice Kit](https://techsavant013.gumroad.com/l/ic33-risk-assessment-practice-kit?utm_source=github&utm_medium=readme&utm_campaign=readingdataot)**: 254 scenario questions on scoping, zones and conduits, SL-T and CRS, for anyone preparing for the ISA/IEC 62443 Risk Assessment Specialist or running 62443-3-2 assessments.
+- Free write-up: [Your SL-T Is Probably Wrong: 3 Risk Assessment Mistakes IEC 62443-3-2 Is Designed to Catch](https://dev.to/techsavant_lab/your-sl-t-is-probably-wrong-3-risk-assessment-mistakes-iec-62443-3-2-is-designed-to-catch-3k4n)
+
 ## License
 
 MIT
