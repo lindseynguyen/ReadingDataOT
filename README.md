@@ -1,5 +1,17 @@
 # OTInspect (ReadingDataOT)
 
+[![CI](https://github.com/lindseynguyen/ReadingDataOT/actions/workflows/ci.yml/badge.svg)](https://github.com/lindseynguyen/ReadingDataOT/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/lindseynguyen/ReadingDataOT?sort=semver)](https://github.com/lindseynguyen/ReadingDataOT/releases/latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](pyproject.toml)
+[![Platform: Windows | Linux](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-lightgrey.svg)](#download-windows)
+[![Read-only, offline](https://img.shields.io/badge/read--only-offline%2C%20no%20device%20access-success.svg)](#otinspect-readingdataot)
+[![IEC 61850 SCL](https://img.shields.io/badge/IEC%2061850-SCD%20%7C%20ICD%20%7C%20CID-informational.svg)](#what-it-understands)
+[![COMTRADE](https://img.shields.io/badge/IEEE%20C37.111-COMTRADE-informational.svg)](#what-it-understands)
+[![OT protocols](https://img.shields.io/badge/PCAP-GOOSE%20%7C%20MMS%20%7C%20Modbus%20%7C%20DNP3%20%7C%20S7-informational.svg)](#what-it-understands)
+[![IEC 62443](https://img.shields.io/badge/IEC%2062443-mapped-black.svg)](#iec-62443-and-mitre-attck-for-ics)
+[![MITRE ATT&CK for ICS](https://img.shields.io/badge/MITRE%20ATT%26CK-for%20ICS-red.svg)](#iec-62443-and-mitre-attck-for-ics)
+[![SARIF | CycloneDX](https://img.shields.io/badge/export-SARIF%20%7C%20CycloneDX-orange.svg)](#sarif-and-cyclonedx)
 [![OT/ICS Audit & Risk Toolkit](https://img.shields.io/badge/OT%2FICS-Audit%20%26%20Risk%20Toolkit-ff90e8.svg)](https://techsavant013.gumroad.com/l/ot-security-toolkit?utm_source=github&utm_medium=readme&utm_campaign=readingdataot)
 
 File inventory and analysis for OT/ICS environments. Point it at a folder (a substation backup, an engineering project, a contractor's share drive…) and it tells you **what is in there, which devices it describes, and which configuration risks it can see**.
