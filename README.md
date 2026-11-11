@@ -1,5 +1,7 @@
 # OTInspect (ReadingDataOT)
 
+[![OT/ICS Audit & Risk Toolkit](https://img.shields.io/badge/OT%2FICS-Audit%20%26%20Risk%20Toolkit-ff90e8.svg)](https://techsavant013.gumroad.com/l/ot-security-toolkit?utm_source=github&utm_medium=readme&utm_campaign=readingdataot)
+
 File inventory and analysis for OT/ICS environments. Point it at a folder (a substation backup, an engineering project, a contractor's share drive…) and it tells you **what is in there, which devices it describes, and which configuration risks it can see**.
 
 It only **reads files**. It never connects to devices.
@@ -265,7 +267,8 @@ See [CHANGELOG.md](CHANGELOG.md).
 
 OTInspect tells you what is in the folder. Deciding what that means for risk is the assessor's job. If that is your work, these may help:
 
-- **[OT/ICS Security Quick Audit Checklist 2026](https://techsavant013.gumroad.com/l/ot-ics-quick-audit-checklist?utm_source=github&utm_medium=readme&utm_campaign=readingdataot)** (free, pay what you want): 35 evidence-based checks across 9 domains, mapped to IEC 62443.
+- **[OT/ICS Cybersecurity Audit & Risk Assessment Toolkit 2026](https://techsavant013.gumroad.com/l/ot-security-toolkit?utm_source=github&utm_medium=readme&utm_campaign=readingdataot)**: audit workbook, field guide and report templates mapped to IEC 62443, to turn an inventory like this into a full OT risk assessment.
+- **[Substation OT Firewall Audit Kit](https://techsavant013.gumroad.com/l/substation-ot-firewall-audit-kit?utm_source=github&utm_medium=readme&utm_campaign=readingdataot)**: for when the folder is a substation backup. Review the firewall rules and zone/conduit boundaries around the devices OTInspect found.
 - **[IEC 62443 IC33 Risk Assessment Practice Kit](https://techsavant013.gumroad.com/l/ic33-risk-assessment-practice-kit?utm_source=github&utm_medium=readme&utm_campaign=readingdataot)**: 254 scenario questions on scoping, zones and conduits, SL-T and CRS, for anyone preparing for the ISA/IEC 62443 Risk Assessment Specialist or running 62443-3-2 assessments.
 - Free write-up: [Your SL-T Is Probably Wrong: 3 Risk Assessment Mistakes IEC 62443-3-2 Is Designed to Catch](https://dev.to/techsavant_lab/your-sl-t-is-probably-wrong-3-risk-assessment-mistakes-iec-62443-3-2-is-designed-to-catch-3k4n)
 
