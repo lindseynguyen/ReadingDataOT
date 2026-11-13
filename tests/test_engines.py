@@ -285,8 +285,10 @@ mode = os.environ.get("FAKE_CAPA_MODE", "ok")
 if "--version" in sys.argv:
     print("capa 9.1.0" if mode != "badversion" else "nonsense"); sys.exit(0)
 path = sys.argv[-1]
-with open(os.environ["FAKE_CAPA_LOG"], "a") as fh:
-    fh.write(path + "\n")
+log_dir = os.environ["FAKE_CAPA_LOG"]
+os.makedirs(log_dir, exist_ok=True)
+with open(os.path.join(log_dir, "call_%d_%d.txt" % (os.getpid(), time.time_ns())), "w") as fh:
+    fh.write(path)
 if mode == "hang":
     child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(120)"])
     with open(os.environ["FAKE_CAPA_CHILD"], "w") as fh:
@@ -316,11 +318,18 @@ print(json.dumps({"meta": {"analysis": {"format": "pe", "arch": "i386", "os": "w
 '''
 
 
+def calls(log) -> list[str]:
+    """Paths capa was called with (one file per call: appends are not atomic on Windows)."""
+    if not log.exists():
+        return []
+    return [p.read_text() for p in log.iterdir()]
+
+
 @pytest.fixture()
 def fake_capa(tmp_path, monkeypatch):
     script = tmp_path / "fake_capa.py"
     script.write_text(FAKE_CAPA, encoding="utf-8")
-    log = tmp_path / "capa_calls.log"
+    log = tmp_path / "capa_calls"
     monkeypatch.setenv("FAKE_CAPA_LOG", str(log))
     monkeypatch.setenv("FAKE_CAPA_CHILD", str(tmp_path / "child.pid"))
     monkeypatch.setenv("FAKE_CAPA_MODE", "ok")
@@ -339,8 +348,7 @@ def _capa(cmd, **kw):
 def test_capa_findings_from_current_json(fake_capa):
     cmd, data, log = fake_capa
     res = scan(str(data), engines=_capa(cmd))
-    calls = log.read_text().splitlines()
-    assert sorted(os.path.basename(c) for c in calls) == ["agent.exe", "sensor.elf"]     # text file not analysed
+    assert sorted(os.path.basename(c) for c in calls(log)) == ["agent.exe", "sensor.elf"]     # text file not analysed
     rec = next(f for f in res.files if f.path.endswith("agent.exe"))
     rules = {x.rule: x for x in rec.findings}
     inj = rules["CAPA-PROCESS-INJECTION"]
@@ -379,7 +387,7 @@ def test_capa_missing_rules_stops_early_with_one_warning(fake_capa, monkeypatch)
         (data / f"x{i}.exe").write_bytes(pe(b"x"))
     res = scan(str(data), engines=_capa(cmd, capa_workers=1))
     assert sum("rules not found" in w for w in res.warnings) == 1
-    assert len(log.read_text().splitlines()) == 1
+    assert len(calls(log)) == 1
 
 
 def test_capa_hang_is_killed_with_children(fake_capa, monkeypatch, tmp_path):
@@ -415,13 +423,13 @@ def _alive(pid: int) -> bool:
 def test_capa_cache_and_size_limit(fake_capa):
     cmd, data, log = fake_capa
     scan(str(data), engines=_capa(cmd))
-    n = len(log.read_text().splitlines())
+    n = len(calls(log))
     res = scan(str(data), engines=_capa(cmd))
-    assert len(log.read_text().splitlines()) == n                      # served from cache
+    assert len(calls(log)) == n                      # served from cache
     assert res.engines["capa"]["cached"] == 2
     assert any(x.rule == "CAPA-PROCESS-INJECTION" for x in res.findings)
     res = scan(str(data), engines=_capa(cmd, capa_cache=False, capa_max_mb=0.00001))
-    assert res.engines["capa"]["skipped"] == 2 and len(log.read_text().splitlines()) == n
+    assert res.engines["capa"]["skipped"] == 2 and len(calls(log)) == n
 
 
 def test_capa_not_installed_or_broken(tmp_path, monkeypatch):

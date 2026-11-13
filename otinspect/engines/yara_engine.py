@@ -164,11 +164,23 @@ def scan_file(rs: YaraRuleSet, path: str, timeout: int = 60) -> list[YaraMatch]:
     if rs.backend == "yara-python":
         import yara
         try:
-            matches = rs._rules.match(path, timeout=int(timeout))
+            if os.name == "nt" and not path.isascii():
+                # libyara opens files with the ANSI API on Windows: non-ASCII paths fail, so pass the bytes
+                matches = rs._rules.match(data=_read(path), timeout=int(timeout))
+            else:
+                matches = rs._rules.match(path, timeout=int(timeout))
         except yara.TimeoutError:
             raise TimeoutError(f"YARA timed out after {timeout} s") from None
         except yara.Error as e:
-            raise RuntimeError(f"YARA: {e}") from None
+            if "could not open" in str(e).lower() and os.path.isfile(path):
+                try:
+                    matches = rs._rules.match(data=_read(path), timeout=int(timeout))
+                except yara.TimeoutError:
+                    raise TimeoutError(f"YARA timed out after {timeout} s") from None
+                except yara.Error as e2:
+                    raise RuntimeError(f"YARA: {e2}") from None
+            else:
+                raise RuntimeError(f"YARA: {e}") from None
         for m in matches[:MAX_MATCHES_PER_FILE]:
             ids, first = _yp_strings(m)
             out.append(YaraMatch(m.rule, m.namespace, list(m.tags or []), _meta_dict(m.meta), ids, first))
@@ -196,6 +208,11 @@ def scan_file(rs: YaraRuleSet, path: str, timeout: int = 60) -> list[YaraMatch]:
         out.append(YaraMatch(m.identifier, m.namespace, list(getattr(m, "tags", ()) or ()),
                              _meta_dict(m.metadata), ids, first))
     return out
+
+
+def _read(path: str) -> bytes:
+    with open(path, "rb") as fh:
+        return fh.read()
 
 
 def severity(meta: dict, default: str = "medium") -> str:
