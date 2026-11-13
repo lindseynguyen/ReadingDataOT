@@ -4,6 +4,23 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-13
+
+### Added
+- **Optional AI assistance through an internal model** (`otinspect/ai/`): executive summary, prioritised remediation plan, IEC 62443-3-3 view, likely attack paths, explanation of a finding and free questions. Works with any OpenAI-compatible endpoint: LiteLLM AI gateway, vLLM, Ollama, LM Studio, LocalAI, TGI, and Azure OpenAI. Off until a profile is configured; scanning stays offline.
+- GUI: **AI settings** dialog (connection, API key storage, TLS / mTLS / proxy / internal-only policy, privacy limits, *Test connection*), **AI Assistant** tab with payload preview, and *Explain with AI…* on findings.
+- CLI: `otinspect ai init | profiles | test | analyze` (`--preview` prints exactly what would be sent).
+- `docs/ai.md`: profile reference, security controls and a LiteLLM gateway checklist. Optional extra `pip install ".[ai]"` for OS keyring storage.
+
+### Security
+- Data sent to the model is minimised and pseudonymised (IPs, MACs, asset/host names, file names, e-mail addresses), real values are restored locally; passwords, SNMP communities, keys and tokens are removed. The scanned path, file hashes, contents and captures are never sent.
+- Endpoint policy: internal addresses only by default, HTTPS with TLS 1.2+ and verification, internal CA and mTLS support, redirects refused, environment proxies ignored unless configured.
+- API keys come from the OS keyring, an environment variable or memory; profiles containing a key are rejected; keys are scrubbed from error messages.
+- Prompt-injection guard (per-request fenced untrusted data, plain-text rendering) and a metadata-only audit log.
+
+### Fixed
+- CI: Python 3.9 is no longer available on `ubuntu-latest` runners. The test matrix now uses Python 3.10 and 3.13 and `requires-python` is `>=3.10` (3.9 reached end of life in October 2025). Actions updated to `checkout@v5` and `setup-python@v6`.
+
 ## [0.4.1] - 2026-10-13
 
 ### Security

@@ -13,6 +13,7 @@ hidden = [
     "otinspect.parsers.netconfig", "otinspect.parsers.otcmd",
     "otinspect.parsers.logfile", "otinspect.parsers.archive", "otinspect.parsers.binary",
     "defusedxml.ElementTree", "yaml",
+    "otinspect.ai", "otinspect.gui.ai_panel", "keyring.backends.Windows",   # optional AI assistant
 ]
 excludes = ["tkinter", "unittest", "pydoc", "PyQt5.QtWebEngineWidgets", "PyQt5.QtWebEngineCore",
             "PyQt5.QtQml", "PyQt5.QtQuick", "PyQt5.QtMultimedia", "PyQt5.QtBluetooth", "PyQt5.QtSql",

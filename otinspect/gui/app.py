@@ -1,5 +1,6 @@
 """PyQt5 GUI: scans in a QThread (no freezing), File / Asset /
-Finding tables with filter and sort, detail panel, HTML/JSON/CSV export."""
+Finding tables with filter and sort, detail panel, HTML/JSON/CSV export,
+optional AI Assistant tab for an internal model."""
 from __future__ import annotations
 
 import json
@@ -134,6 +135,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tabs.addTab(self.t_files, "File")
         self.tabs.addTab(self.t_assets, "Assets")
         self.tabs.addTab(self.t_find, "Findings")
+        from .ai_panel import AIPanel
+        self.ai_panel = AIPanel(lambda: self.result, self._current_finding)
+        self.tabs.addTab(self.ai_panel, "AI Assistant")
+        self.t_find.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.t_find.customContextMenuRequested.connect(self._finding_menu)
 
         self.detail = QtWidgets.QPlainTextEdit()
         self.detail.setReadOnly(True)
@@ -150,7 +156,8 @@ class MainWindow(QtWidgets.QMainWindow):
         for text, fn in (("Export HTML", self.export_html), ("Export JSON", self.export_json),
                          ("Export CSV", self.export_csv), ("Export SARIF / SBOM…", self.export_interop),
                          ("Compare SCD…", self.compare_scd),
-                         ("Advisory DB…", self.pick_advisories), ("Rules folder…", self.pick_rules)):
+                         ("Advisory DB…", self.pick_advisories), ("Rules folder…", self.pick_rules),
+                         ("AI settings…", self.ai_settings)):
             b = QtWidgets.QPushButton(text)
             b.clicked.connect(fn)
             bot.addWidget(b)
@@ -271,6 +278,23 @@ class MainWindow(QtWidgets.QMainWindow):
             refs += "".join(f"\n  {t}  {attack_title(t)}" for t in f.attack)
             self.detail.setPlainText(f"[{f.severity.upper()}] {f.rule}\n\n{f.message}\n\nAsset:  {f.asset}\nSource: {f.source}"
                                      + (f"\n\nIEC 62443-3-3 / ATT&CK for ICS:{refs}" if refs else ""))
+
+    def _current_finding(self):
+        i = self._selected(self.t_find)
+        return self._findings[i] if i is not None else None
+
+    def _finding_menu(self, pos):
+        f = self._current_finding()
+        if f is None:
+            return
+        m = QtWidgets.QMenu(self)
+        act = m.addAction("Explain with AI…")
+        if m.exec_(self.t_find.viewport().mapToGlobal(pos)) == act:
+            self.tabs.setCurrentWidget(self.ai_panel)
+            self.ai_panel.explain(f)
+
+    def ai_settings(self):
+        self.ai_panel.open_settings()
 
     def apply_filter(self, text: str):
         text = text.lower().strip()
