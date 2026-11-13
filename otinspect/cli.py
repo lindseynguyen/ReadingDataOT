@@ -5,6 +5,8 @@ Examples:
     otinspect scan ./samples --csv out/ -q --fail-on high
     otinspect diff old.scd new.scd --html diff.html
     otinspect advisories import csaf_files/OT/white -o advisories.json
+    otinspect ai test                                  # check the internal AI profile
+    otinspect ai analyze report.json --task prioritise --lang vi -o plan.md
 """
 from __future__ import annotations
 
@@ -95,7 +97,27 @@ def main(argv: list[str] | None = None) -> int:
     ai.add_argument("-o", "--output", default="advisories.json")
 
     sub.add_parser("gui", help="Start the graphical interface")
+
+    x = sub.add_parser("ai", help="Optional AI assistance through an internal model (LiteLLM gateway, vLLM...)")
+    xsub = x.add_subparsers(dest="xcmd", required=True)
+    xi = xsub.add_parser("init", help="Write a profile template to edit (API keys are never stored in it)")
+    xi.add_argument("--force", action="store_true")
+    xsub.add_parser("profiles", help="List configured AI profiles")
+    xt = xsub.add_parser("test", help="Check policy, TLS, authentication and model availability")
+    xt.add_argument("--profile")
+    xa = xsub.add_parser("analyze", help="Analyse a JSON report (or scan a path first) with the AI model")
+    xa.add_argument("path", help="JSON report from 'scan --json', or a file/folder to scan")
+    xa.add_argument("--profile")
+    from .ai.analysis import LANGUAGES, TASKS
+    xa.add_argument("--task", default="summary", choices=[t for t in TASKS if t != "explain"])
+    xa.add_argument("--question", default="", help="Question for --task question")
+    xa.add_argument("--lang", default="en", help=f"Answer language ({', '.join(LANGUAGES)} or any name)")
+    xa.add_argument("--preview", action="store_true", help="Print exactly what would be sent, and do not send")
+    xa.add_argument("-o", "--output", help="Write the answer to a Markdown file")
     args = ap.parse_args(argv)
+
+    if args.cmd == "ai":
+        return _ai(args)
 
     if args.cmd == "gui":
         from .gui.app import main as gui_main
@@ -158,6 +180,70 @@ def main(argv: list[str] | None = None) -> int:
             to_cyclonedx(res, args.cyclonedx)
             print(f"CycloneDX: {args.cyclonedx}")
     return 2 if _fail(res.findings, args.fail_on) else 0
+
+
+def _ai(args) -> int:
+    from .ai import (AIConfigError, AIRequestError, ChatClient, check_endpoint, get_api_key, get_profile,
+                     load_profiles, load_report, prepare, send)
+    from .ai.config import config_path, default_profile_name, save_profiles, template_profile
+    try:
+        if args.xcmd == "init":
+            path = config_path()
+            if load_profiles() and not args.force:
+                print(f"{path} already has profiles; use --force to overwrite", file=sys.stderr)
+                return 1
+            t = template_profile()
+            save_profiles({t.name: t}, t.name)
+            print(f"Template written to {path}\nEdit base_url / model, then set the key in the environment "
+                  f"variable {t.api_key_env} (or use the GUI to store it in the OS keyring).")
+            return 0
+        if args.xcmd == "profiles":
+            ps, dflt = load_profiles(), default_profile_name()
+            if not ps:
+                print(f"No AI profile in {config_path()}")
+                return 1
+            for p in ps.values():
+                print(f"{'*' if p.name == dflt else ' '} {p.name:<20} {p.provider:<18} {p.model:<20} {p.base_url}")
+            return 0
+        p = get_profile(args.profile)
+        if args.xcmd == "test":
+            p.validate(resolve=False)
+            ips = check_endpoint(p)
+            print(f"Endpoint policy : OK ({p.host} -> {', '.join(ips)}"
+                  f"{', internal only' if p.internal_only else ''})")
+            print(f"API key         : {'found' if get_api_key(p) else 'NOT FOUND'} ({p.secret_store})")
+            c = ChatClient(p)
+            try:
+                models = c.list_models()
+                ok = p.model in models
+                print(f"Models          : {len(models)} available; '{p.model}' {'found' if ok else 'not listed'}")
+            except AIRequestError as e:
+                print(f"Models          : not listed ({e})")
+            r = c.chat([{"role": "user", "content": "Reply with the single word OK."}])
+            print(f"Chat            : OK, model {r.model}, answer {r.text.strip()[:40]!r}")
+            return 0
+        # analyze
+        if args.path.lower().endswith(".json"):
+            res = load_report(args.path)
+        else:
+            from .core.scanner import scan
+            res = scan(args.path)
+        req = prepare(res, p, args.task, question=args.question, language=args.lang)
+        if args.preview:
+            print(req.preview())
+            return 0
+        print(f"Sending {req.stats['chars']:,} characters to {p.host} ({req.stats['masked']})", file=sys.stderr)
+        ans = send(req)
+        print(ans.text)
+        if args.output:
+            with open(args.output, "w", encoding="utf-8") as fh:
+                fh.write(f"<!-- OTInspect AI ({ans.task}, model {ans.model}). Decision support only. -->\n\n")
+                fh.write(ans.text + "\n")
+            print(f"\nSaved: {args.output}", file=sys.stderr)
+        return 0
+    except (AIConfigError, AIRequestError, ValueError, OSError) as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":

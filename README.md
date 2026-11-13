@@ -3,7 +3,7 @@
 [![CI](https://github.com/lindseynguyen/ReadingDataOT/actions/workflows/ci.yml/badge.svg)](https://github.com/lindseynguyen/ReadingDataOT/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/lindseynguyen/ReadingDataOT?sort=semver)](https://github.com/lindseynguyen/ReadingDataOT/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](pyproject.toml)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
 [![Platform: Windows | Linux](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-lightgrey.svg)](#download-windows)
 [![Read-only, offline](https://img.shields.io/badge/read--only-offline%2C%20no%20device%20access-success.svg)](#otinspect-readingdataot)
 [![IEC 61850 SCL](https://img.shields.io/badge/IEC%2061850-SCD%20%7C%20ICD%20%7C%20CID-informational.svg)](#what-it-understands)
@@ -12,11 +12,14 @@
 [![IEC 62443](https://img.shields.io/badge/IEC%2062443-mapped-black.svg)](#iec-62443-and-mitre-attck-for-ics)
 [![MITRE ATT&CK for ICS](https://img.shields.io/badge/MITRE%20ATT%26CK-for%20ICS-red.svg)](#iec-62443-and-mitre-attck-for-ics)
 [![SARIF | CycloneDX](https://img.shields.io/badge/export-SARIF%20%7C%20CycloneDX-orange.svg)](#sarif-and-cyclonedx)
+[![AI: internal LLM, opt-in](https://img.shields.io/badge/AI-internal%20LLM%20%C2%B7%20opt--in-8a63d2.svg)](#ai-assistance-optional-internal-model)
 [![OT/ICS Audit & Risk Toolkit](https://img.shields.io/badge/OT%2FICS-Audit%20%26%20Risk%20Toolkit-ff90e8.svg)](https://techsavant013.gumroad.com/l/ot-security-toolkit?utm_source=github&utm_medium=readme&utm_campaign=readingdataot)
 
 File inventory and analysis for OT/ICS environments. Point it at a folder (a substation backup, an engineering project, a contractor's share drive…) and it tells you **what is in there, which devices it describes, and which configuration risks it can see**.
 
 It only **reads files**. It never connects to devices.
+
+Optionally, an [AI assistant](#ai-assistance-optional-internal-model) can interpret the results through a model your organisation runs (LiteLLM gateway, vLLM, Ollama, Azure OpenAI private endpoint), with identifiers masked before anything is sent.
 
 > **Status: beta.** Tested on synthetic samples, public real-world captures and SCL files, fuzzed and hostile inputs, on Windows and Linux. Please open an issue if a file is misidentified or parsed wrongly.
 
@@ -171,15 +174,39 @@ It lists added/removed/modified IEDs, addresses, logical devices and nodes, Data
 
 The HTML report draws every asset with an IP, grouped by SCL SubNetwork or /24. Devices with high findings have a red border, duplicate IPs are marked, and hosts that appear only in captures (undocumented) have a dashed orange border.
 
+## AI assistance (optional, internal model)
+
+Turn a scan into an executive summary, a prioritised remediation plan, an IEC 62443-3-3 view, likely attack paths, an explanation of one finding, or answers to your own questions, using a **model your organisation controls**: a LiteLLM AI gateway, vLLM, Ollama, LM Studio, LocalAI or an Azure OpenAI private endpoint. Off until you configure a profile; scanning stays fully offline.
+
+```bash
+otinspect ai init                                   # profile template (~/.otinspect/ai_profiles.json)
+otinspect ai test                                   # policy, TLS, key, model, one-word chat
+otinspect ai analyze report.json --task prioritise --lang vi -o plan.md
+otinspect ai analyze report.json --task question --question "Which hosts can stop PLCs?" --preview
+```
+
+In the GUI: **AI settings…** (connection, API key, security, privacy tabs, *Test connection*), then the **AI Assistant** tab, or right-click a finding → *Explain with AI…*.
+
+Safeguards, all on by default:
+
+- **Data minimisation**: only findings and asset attributes are sent, within limits. IPs, MACs, asset/host names and file names become pseudonyms (`IP-3`, `ASSET-7`); real values are restored in the answer locally. Passwords, SNMP communities, keys and tokens are removed. The scanned path, hashes, file contents and captures are never sent.
+- **Endpoint policy**: internal addresses only (public IPs refused unless explicitly allowed), HTTPS with TLS 1.2+ and certificate verification, internal CA and mTLS, redirects refused, system proxy ignored.
+- **Keys** in the OS keyring, an environment variable or memory, never in the profile file, logs or error messages.
+- **Review before sending**: the GUI shows the exact payload and asks; the CLI has `--preview`.
+- **Prompt-injection guard**: file-derived text is fenced as untrusted data; answers are plain text and never trigger actions.
+- **Audit log** with metadata only (user, endpoint, model, task, prompt hash, sizes, tokens).
+
+Details, every profile field and a LiteLLM gateway checklist: [docs/ai.md](docs/ai.md). Answers are decision support: verify them against the findings.
+
 ## Install from source
 
 ```bash
 git clone https://github.com/lindseynguyen/ReadingDataOT.git
 cd ReadingDataOT
-pip install ".[gui]"        # or: pip install -r requirements.txt
+pip install ".[gui,ai]"        # or: pip install -r requirements.txt
 ```
 
-Python 3.9+ is required, plus `defusedxml` and `PyYAML` (installed automatically). PyQt5 is needed only for the GUI.
+Python 3.10+ is required, plus `defusedxml` and `PyYAML` (installed automatically). PyQt5 is needed only for the GUI.
 
 XML files are parsed only through defusedxml: if it is missing, OTInspect reports XML files as parse errors instead of falling back to an unprotected parser.
 
@@ -231,7 +258,8 @@ otinspect/
   rules/     engine.py (YAML/JSON rules) · advisories.py (CSAF import + matching) · builtin.json
   standards/ mappings.json (finding -> IEC 62443-3-3 SR / ATT&CK for ICS) · lookup and annotation
   report/    export.py (HTML / JSON / CSV) · interop.py (SARIF / CycloneDX) · netmap.py (SVG network map)
-  gui/       app.py (PyQt5)
+  ai/        config.py (profiles, endpoint policy, secrets) · redact.py (pseudonymisation) · context.py · client.py (hardened HTTPS client) · analysis.py (tasks, prompts, audit)
+  gui/       app.py (PyQt5) · ai_panel.py (AI settings and AI Assistant tab)
   cli.py
 packaging/   PyInstaller spec for the Windows executables
 ```
@@ -252,7 +280,7 @@ python -m pytest -q tests/test_realworld.py
 - **Fuzzing** with [Hypothesis](https://hypothesis.readthedocs.io/): protocol decoders, the PCAP parser, configuration parsers, file identification and version comparison must accept arbitrary input without raising.
 - **Real-world files**: captures from real PLCs and RTUs (DNP3, IEC 104, S7comm including a program download with password, EtherNet/IP stop/reset/firmware change, Modbus), SCL files from OpenSCD and COMTRADE from python-comtrade. They are listed in `tests/realworld/manifest.json`, pinned by commit and SHA-256, downloaded on demand and never committed.
 
-CI runs everything on Windows and Linux with Python 3.9 and 3.13, plus a real-world job. Coverage is measured without the GUI.
+CI runs everything on Windows and Linux with Python 3.10 and 3.13, plus a real-world job. Coverage is measured without the GUI.
 
 ## Roadmap
 

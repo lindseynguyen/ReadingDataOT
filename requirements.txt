@@ -5,5 +5,7 @@ defusedxml>=0.7
 pyyaml>=6
 # GUI only (not needed for the command line)
 PyQt5>=5.15
+# Optional: store AI API keys in the OS keyring (Windows Credential Manager, macOS Keychain, Secret Service)
+# keyring>=24
 # Optional (reference MIME type):
 # python-magic>=0.4 ; on Windows use python-magic-bin

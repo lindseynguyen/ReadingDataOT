@@ -22,6 +22,13 @@ def run(args, expect=0):
 
 
 v = run(["--version"]).stdout.strip()
+# AI assistant is bundled but stays inactive without a profile (nothing is contacted)
+os.environ["OTINSPECT_AI_CONFIG"] = os.path.abspath("smoke_ai_profiles.json")
+if os.path.exists(os.environ["OTINSPECT_AI_CONFIG"]):
+    os.remove(os.environ["OTINSPECT_AI_CONFIG"])
+run(["ai", "profiles"], expect=1)
+run(["ai", "init"])
+run(["ai", "profiles"])
 run(["scan", "samples", "-q", "--json", "smoke.json", "--html", "smoke.html"])
 if os.path.exists("smoke.json"):
     r = json.load(open("smoke.json", encoding="utf-8"))
