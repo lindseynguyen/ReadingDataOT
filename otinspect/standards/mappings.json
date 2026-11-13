@@ -12,8 +12,10 @@
   "SR 2.8": "Auditable events",
   "SR 2.11": "Timestamps",
   "SR 3.1": "Communication integrity",
+  "SR 3.2": "Malicious code protection",
   "SR 3.4": "Software and information integrity",
   "SR 3.5": "Input validation",
+  "SR 3.9": "Protection of audit information",
   "SR 4.1": "Information confidentiality",
   "SR 4.3": "Use of cryptography",
   "SR 5.1": "Network segmentation",
@@ -21,6 +23,7 @@
   "SR 6.1": "Audit log accessibility",
   "SR 6.2": "Continuous monitoring",
   "SR 7.1": "Denial of service protection",
+  "SR 7.3": "Control system backup",
   "SR 7.6": "Network and security configuration settings",
   "SR 7.7": "Least functionality",
   "SR 7.8": "Control system component inventory"
@@ -28,7 +31,9 @@
  "attack_ics": {
   "T0809": "Data Destruction",
   "T0816": "Device Restart/Shutdown",
+  "T0819": "Exploit Public-Facing Application",
   "T0822": "External Remote Services",
+  "T0828": "Loss of Productivity and Revenue",
   "T0830": "Adversary-in-the-Middle",
   "T0831": "Manipulation of Control",
   "T0835": "Manipulate I/O Image",
@@ -37,9 +42,13 @@
   "T0843": "Program Download",
   "T0845": "Program Upload",
   "T0848": "Rogue Master",
+  "T0851": "Rootkit",
+  "T0852": "Screen Capture",
   "T0858": "Change Operating Mode",
   "T0859": "Valid Accounts",
   "T0864": "Transient Cyber Asset",
+  "T0867": "Lateral Tool Transfer",
+  "T0869": "Standard Application Layer Protocol",
   "T0872": "Indicator Removal on Host",
   "T0873": "Project File Infection",
   "T0878": "Alarm Suppression",
@@ -53,7 +62,10 @@
   "T1692.001": "Unauthorized Message: Command Message",
   "T1692.002": "Unauthorized Message: Reporting Message",
   "T1694.001": "Insecure Credentials: Default Credentials",
-  "T1694.002": "Insecure Credentials: Hardcoded Credentials"
+  "T1694.002": "Insecure Credentials: Hardcoded Credentials",
+  "T1701.001": "Command and Scripting Interpreter: PowerShell",
+  "T1701.002": "Command and Scripting Interpreter: Windows Command Shell",
+  "T1701.003": "Command and Scripting Interpreter: Unix Shell"
  },
  "rules": {
   "SCL-IP-DEFAULT": {
@@ -723,6 +735,18 @@
    "iec62443": [
     "SR 2.8",
     "SR 6.2"
+   ],
+   "attack": []
+  },
+  "YARA-*": {
+   "iec62443": [
+    "SR 3.2"
+   ],
+   "attack": []
+  },
+  "CAPA-*": {
+   "iec62443": [
+    "SR 3.2"
    ],
    "attack": []
   }

@@ -5,6 +5,10 @@ defusedxml>=0.7
 pyyaml>=6
 # GUI only (not needed for the command line)
 PyQt5>=5.15
+# Optional: YARA engine (--yara); yara-x works too
+# yara-python>=4.2
+# Optional: capa engine (--capa): prefer the standalone capa executable from
+# https://github.com/mandiant/capa/releases, or: flare-capa>=7 (needs --capa-rules)
 # Optional: store AI API keys in the OS keyring (Windows Credential Manager, macOS Keychain, Secret Service)
 # keyring>=24
 # Optional (reference MIME type):

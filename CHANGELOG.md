@@ -4,6 +4,22 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-13
+
+### Added
+- **YARA engine** (`--yara`, `--yara-rules`): matches every file against built-in OT/ICS triage rules (remote access tools, credential dumping and offensive tooling, Snap7 PLC control libraries, embedded OT protocol stacks, download-and-execute scripts, web shells, ransom notes, EICAR) and any user rule sets. Rule `meta` `severity`, `iec62443` and `attack` are used in findings. Works with yara-python (libyara 4.x) or YARA-X.
+- **capa engine** (`--capa`): capabilities of PE / ELF / .NET executables, grouped into triage findings (process injection, credential theft, C2, anti-forensics, bootkit, defense evasion, code loading, persistence, surveillance, exploitation, anti-analysis, drivers). Standalone capa executable or the flare-capa package with pinned rules.
+- `otinspect engines` shows availability, versions and whether the rules compile. GUI: *YARA* / *capa* checkboxes and an *Engines…* dialog with *Check engines*.
+- JSON reports include per-engine statistics (`engines`). IEC 62443-3-3 SR 3.2, SR 3.9, SR 7.3 and ATT&CK for ICS techniques T0819, T0828, T0851, T0852, T0867, T0869, T1701.001-003 added to the mapping tables.
+- `docs/engines.md`. Optional extras `pip install ".[yara]"` and `".[capa]"`. The Windows release bundles yara-python and the built-in rules.
+- CI job *Engines* on Linux and Windows: yara-python and YARA-X side by side, the oldest supported versions (yara-python 4.2, capa 7.4), capa 10 as pip package and as standalone executable.
+
+### Reliability
+- Engines never stop a scan: a missing engine or rules folder is a warning, a broken rule file is skipped, timeouts / crashes / invalid output become per-file notes.
+- capa runs in a separate process with a hard timeout that kills the whole process tree; missing capa rules stop capa after the first file. Results are cached by SHA-256, capa version and rules.
+- Tests cover detection and false positives, both YARA backends agreeing, user rule metadata, broken rules, real and simulated timeouts, hung capa with child processes, crashes, invalid JSON, old capa JSON, caching, size limits, Unicode paths, archives and 8-thread determinism.
+- Strings of offensive tools in the rules and tests are stored in hex / reversed so antivirus does not quarantine them.
+
 ## [0.5.0] - 2026-11-13
 
 ### Added

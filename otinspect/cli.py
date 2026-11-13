@@ -5,6 +5,8 @@ Examples:
     otinspect scan ./samples --csv out/ -q --fail-on high
     otinspect diff old.scd new.scd --html diff.html
     otinspect advisories import csaf_files/OT/white -o advisories.json
+    otinspect scan D:\\Backup --yara --yara-rules vendor_rules/ --capa --html report.html
+    otinspect engines                                  # which detection engines are available
     otinspect ai test                                  # check the internal AI profile
     otinspect ai analyze report.json --task prioritise --lang vi -o plan.md
 """
@@ -12,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 
 from . import __version__
@@ -32,6 +35,8 @@ def _print_summary(res) -> None:
         print(f"\nFindings ({len(fs)}):")
         for x in fs:
             print(f"  [{x.severity.upper():<6}] {x.rule:<22} {x.message}")
+    for name, st in (res.engines or {}).items():
+        print(f"\n{name}: " + ", ".join(f"{k} {v}" for k, v in st.items() if v not in ("", None)))
     errs = [f for f in res.files if f.error]
     if errs:
         print(f"\nParse errors ({len(errs)}):")
@@ -82,6 +87,24 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("-q", "--quiet", action="store_true")
     s.add_argument("--fail-on", choices=["high", "medium", "low"],
                    help="Exit with code 2 if any finding is at or above this severity (for CI / scheduled checks)")
+    e = s.add_argument_group("detection engines (optional; see 'otinspect engines')")
+    e.add_argument("--yara", action="store_true", help="Match files against YARA rules (built-in OT rules + --yara-rules)")
+    e.add_argument("--yara-rules", action="append", default=[], metavar="PATH",
+                   help="Extra YARA rule file or folder; repeatable (implies --yara)")
+    e.add_argument("--no-yara-builtin", action="store_true", help="Use only --yara-rules")
+    e.add_argument("--yara-timeout", type=int, default=60, help="Seconds per file (default 60)")
+    e.add_argument("--capa", action="store_true", help="Identify capabilities of PE/ELF executables with capa")
+    e.add_argument("--capa-path", help="capa executable (default: OTINSPECT_CAPA, capa on PATH, or the flare-capa package)")
+    e.add_argument("--capa-rules", default=os.environ.get("OTINSPECT_CAPA_RULES", ""),
+                   help="capa rules folder (needed with pip-installed capa; OTINSPECT_CAPA_RULES)")
+    e.add_argument("--capa-sigs", default=os.environ.get("OTINSPECT_CAPA_SIGS", ""),
+                   help="capa signatures folder (OTINSPECT_CAPA_SIGS)")
+    e.add_argument("--capa-timeout", type=float, default=180, help="Seconds per executable (default 180)")
+    e.add_argument("--capa-workers", type=int, default=2, help="Parallel capa processes (default 2)")
+    e.add_argument("--capa-max-mb", type=float, default=32, help="Skip larger executables (default 32, 0 = no limit)")
+    e.add_argument("--no-capa-cache", action="store_true", help="Do not reuse cached capa results")
+    e.add_argument("--engine-max-mb", type=float, default=128,
+                   help="Skip larger files in YARA (default 128, 0 = no limit)")
 
     d = sub.add_parser("diff", help="Compare two SCL files (e.g. SCD revisions)")
     d.add_argument("old")
@@ -97,6 +120,10 @@ def main(argv: list[str] | None = None) -> int:
     ai.add_argument("-o", "--output", default="advisories.json")
 
     sub.add_parser("gui", help="Start the graphical interface")
+
+    en = sub.add_parser("engines", help="Show which optional detection engines (YARA, capa) are available")
+    en.add_argument("--capa-path")
+    en.add_argument("--yara-rules", action="append", default=[], help="Also check that these rules compile")
 
     x = sub.add_parser("ai", help="Optional AI assistance through an internal model (LiteLLM gateway, vLLM...)")
     xsub = x.add_subparsers(dest="xcmd", required=True)
@@ -118,6 +145,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.cmd == "ai":
         return _ai(args)
+
+    if args.cmd == "engines":
+        return _engines(args)
 
     if args.cmd == "gui":
         from .gui.app import main as gui_main
@@ -156,9 +186,16 @@ def main(argv: list[str] | None = None) -> int:
             sys.stderr.write(f"\r[{i}/{n}] {p[-70:]:<70}")
             sys.stderr.flush()
 
+    from .engines import EngineConfig
+    eng = EngineConfig(yara=args.yara or bool(args.yara_rules), yara_rules=args.yara_rules,
+                       yara_builtin=not args.no_yara_builtin, yara_timeout=args.yara_timeout,
+                       capa=args.capa, capa_cmd=args.capa_path, capa_rules=args.capa_rules,
+                       capa_sigs=args.capa_sigs, capa_timeout=args.capa_timeout, capa_workers=args.capa_workers,
+                       capa_max_mb=args.capa_max_mb, capa_cache=not args.no_capa_cache,
+                       max_file_mb=args.engine_max_mb, workers=args.workers)
     res = scan(args.path, recursive=not args.no_recursive, workers=args.workers, progress=prog,
                rules=args.rules, builtin_rules=not args.no_builtin_rules, advisories=args.advisories,
-               max_file_mb=args.max_file_mb)
+               max_file_mb=args.max_file_mb, engines=eng)
     if not args.quiet:
         sys.stderr.write("\n")
         _print_summary(res)
@@ -180,6 +217,29 @@ def main(argv: list[str] | None = None) -> int:
             to_cyclonedx(res, args.cyclonedx)
             print(f"CycloneDX: {args.cyclonedx}")
     return 2 if _fail(res.findings, args.fail_on) else 0
+
+
+def _engines(args) -> int:
+    from .engines import EngineConfig, status
+    from .engines.yara_engine import compile_rules
+    st = status(EngineConfig(capa_cmd=args.capa_path))
+    y, c = st["yara"], st["capa"]
+    print(f"YARA : {'available' if y['available'] else 'not installed (pip install yara-python, or yara-x)'}"
+          f"{' - ' + y['backend'] + ' ' + y['version'] if y['available'] else ''}")
+    rc = 0
+    if y["available"]:
+        rs = compile_rules(args.yara_rules)
+        print(f"       {len(rs.files)} rule file(s) compiled (built-in: {y['builtin_rules']})")
+        for e in rs.errors:
+            print(f"       ! {e}")
+            rc = 1
+    if c["available"]:
+        print(f"capa : available - {c['version']} ({c['command']})")
+    else:
+        print(f"capa : {c.get('error') or 'not found'} - standalone executable from "
+              f"https://github.com/mandiant/capa/releases (set --capa-path / OTINSPECT_CAPA), or pip install flare-capa "
+              f"with --capa-rules")
+    return rc
 
 
 def _ai(args) -> int:

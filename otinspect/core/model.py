@@ -54,6 +54,7 @@ class ScanResult:
     root: str
     files: list[FileRecord] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    engines: dict[str, Any] = field(default_factory=dict)    # YARA / capa run statistics
 
     @property
     def assets(self) -> list[Asset]:
@@ -70,9 +71,12 @@ class ScanResult:
         return dict(sorted(out.items(), key=lambda kv: -kv[1]))
 
     def to_dict(self) -> dict:
-        return {
+        d = {
             "root": self.root,
             "stats": self.stats(),
             "warnings": self.warnings,
             "files": [f.to_dict() for f in self.files],
         }
+        if self.engines:
+            d["engines"] = self.engines
+        return d
