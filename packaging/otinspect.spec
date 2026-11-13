@@ -6,7 +6,9 @@ import os
 
 ROOT = os.path.abspath(os.path.join(SPECPATH, ".."))
 datas = [(os.path.join(ROOT, "otinspect", "rules", "builtin.json"), os.path.join("otinspect", "rules")),
-         (os.path.join(ROOT, "otinspect", "standards", "mappings.json"), os.path.join("otinspect", "standards"))]
+         (os.path.join(ROOT, "otinspect", "standards", "mappings.json"), os.path.join("otinspect", "standards")),
+         (os.path.join(ROOT, "otinspect", "engines", "rules", "otinspect_builtin.yar"),
+          os.path.join("otinspect", "engines", "rules"))]
 hidden = [
     "otinspect.parsers.scl", "otinspect.parsers.comtrade", "otinspect.parsers.pcap",
     "otinspect.parsers.plc_l5x", "otinspect.parsers.plc_iec", "otinspect.parsers.devicedesc",
@@ -14,6 +16,8 @@ hidden = [
     "otinspect.parsers.logfile", "otinspect.parsers.archive", "otinspect.parsers.binary",
     "defusedxml.ElementTree", "yaml",
     "otinspect.ai", "otinspect.gui.ai_panel", "keyring.backends.Windows",   # optional AI assistant
+    "otinspect.engines", "otinspect.engines.yara_engine", "otinspect.engines.capa_engine",
+    "otinspect.gui.engines_dialog", "yara",                                # YARA / capa engines
 ]
 excludes = ["tkinter", "unittest", "pydoc", "PyQt5.QtWebEngineWidgets", "PyQt5.QtWebEngineCore",
             "PyQt5.QtQml", "PyQt5.QtQuick", "PyQt5.QtMultimedia", "PyQt5.QtBluetooth", "PyQt5.QtSql",

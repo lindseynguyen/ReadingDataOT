@@ -62,3 +62,69 @@ jobs:
         env:
           OTINSPECT_REALWORLD: require
         run: python -m pytest -q tests/test_realworld.py
+
+  engines:
+    name: Engines (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux, yara-python + YARA-X, capa 10 (pip)
+            os: ubuntu-latest
+            python: "3.13"
+            yara: "yara-python yara-x"
+            capa: pip
+            capa_version: "10.0.0"
+          - name: linux, oldest supported (yara-python 4.2, capa 7.4)
+            os: ubuntu-latest
+            python: "3.10"
+            yara: "yara-python==4.2.3"
+            capa: pip
+            capa_version: "7.4.0"
+          - name: windows, YARA-X, capa 10 standalone
+            os: windows-latest
+            python: "3.13"
+            yara: "yara-x"
+            capa: standalone
+            capa_version: "10.0.0"
+    runs-on: ${{ matrix.os }}
+    env:
+      OTINSPECT_ENGINES: require
+      HYPOTHESIS_PROFILE: ci
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install OTInspect and YARA backend(s)
+        shell: bash
+        run: |
+          python -m pip install -e ".[dev]"
+          if [ "${{ matrix.yara }}" = "yara-x" ]; then python -m pip uninstall -y yara-python; fi
+          python -m pip install ${{ matrix.yara }}
+      - name: Install capa (pip) with pinned rules and signatures
+        if: matrix.capa == 'pip'
+        shell: bash
+        run: |
+          python -m pip install "flare-capa==${{ matrix.capa_version }}"
+          git clone -q --depth 1 --branch "v${{ matrix.capa_version }}" https://github.com/mandiant/capa-rules "$RUNNER_TEMP/capa-rules"
+          git clone -q --depth 1 --branch "v${{ matrix.capa_version }}" --filter=blob:none --sparse https://github.com/mandiant/capa "$RUNNER_TEMP/capa-src"
+          git -C "$RUNNER_TEMP/capa-src" sparse-checkout set sigs
+          echo "OTINSPECT_CAPA_RULES=$RUNNER_TEMP/capa-rules" >> "$GITHUB_ENV"
+          echo "OTINSPECT_CAPA_SIGS=$RUNNER_TEMP/capa-src/sigs" >> "$GITHUB_ENV"
+      - name: Install capa (standalone executable, embedded rules)
+        if: matrix.capa == 'standalone'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "v${{ matrix.capa_version }}" -R mandiant/capa -p "capa-*-windows.zip" -D "$RUNNER_TEMP/capa"
+          7z x -y -o"$RUNNER_TEMP/capa" "$RUNNER_TEMP"/capa/capa-*-windows.zip > /dev/null
+          exe="$(find "$RUNNER_TEMP/capa" -iname 'capa.exe' | head -1)"
+          echo "OTINSPECT_CAPA=$exe" >> "$GITHUB_ENV"
+      - name: Engine status
+        run: python -m otinspect engines
+      - name: Engine tests (detection, compatibility, timeouts, concurrency, real capa)
+        run: python -m pytest -q tests/test_engines.py -p no:cacheprovider
+      - name: End-to-end scan with both engines
+        run: python -m otinspect scan samples -q --yara --capa --json engines.json --sarif engines.sarif

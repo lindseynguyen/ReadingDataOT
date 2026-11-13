@@ -84,7 +84,8 @@ def analyze_file(path: str, display_path: str | None = None,
 def scan(root: str, recursive: bool = True, workers: int = 4,
          progress: ProgressCb | None = None, rules: list[str] | None = None,
          builtin_rules: bool = True, advisories: str | None = None,
-         max_file_mb: float | None = None) -> ScanResult:
+         max_file_mb: float | None = None, engines=None) -> ScanResult:
+    """engines: optional otinspect.engines.EngineConfig (YARA / capa), run after parsing."""
     load_builtin()
     paths = list(iter_files(root, recursive))
     result = ScanResult(root=os.path.abspath(root))
@@ -95,9 +96,12 @@ def scan(root: str, recursive: bool = True, workers: int = 4,
             if progress:
                 progress(i, total, rec.path)
     correlate(result)
+    if engines is not None and engines.enabled:
+        from ..engines import run_engines
+        run_engines(result, engines, progress)
     from ..rules import apply_rules, load_rules
     loaded, warns = load_rules(rules, include_builtin=builtin_rules)
-    result.warnings = warns
+    result.warnings = result.warnings + warns
     if not safexml_available():
         result.warnings.insert(0, MISSING_MSG)
     apply_rules(result, loaded)

@@ -29,6 +29,15 @@ if os.path.exists(os.environ["OTINSPECT_AI_CONFIG"]):
 run(["ai", "profiles"], expect=1)
 run(["ai", "init"])
 run(["ai", "profiles"])
+# bundled YARA engine and built-in rules
+p = run(["engines"])
+if "yara-python" not in p.stdout or "1 rule file(s) compiled" not in p.stdout:
+    errors.append(f"YARA engine not bundled correctly: {p.stdout.strip()!r}")
+run(["scan", "samples", "-q", "--yara", "--json", "smoke_yara.json"])
+if os.path.exists("smoke_yara.json"):
+    ry = json.load(open("smoke_yara.json", encoding="utf-8"))
+    if not ry.get("engines", {}).get("yara", {}).get("scanned"):
+        errors.append(f"YARA did not scan the samples: {ry.get('engines')} {ry.get('warnings')}")
 run(["scan", "samples", "-q", "--json", "smoke.json", "--html", "smoke.html"])
 if os.path.exists("smoke.json"):
     r = json.load(open("smoke.json", encoding="utf-8"))

@@ -23,15 +23,15 @@ class ScanWorker(QtCore.QThread):
     done = QtCore.pyqtSignal(object)
     failed = QtCore.pyqtSignal(str)
 
-    def __init__(self, path: str, recursive: bool, rules: list[str], advisories: str | None):
+    def __init__(self, path: str, recursive: bool, rules: list[str], advisories: str | None, engines=None):
         super().__init__()
         self.path, self.recursive = path, recursive
-        self.rules, self.advisories = rules, advisories
+        self.rules, self.advisories, self.engines = rules, advisories, engines
 
     def run(self):
         try:
             res = scan(self.path, self.recursive, progress=lambda i, n, p: self.progress.emit(i, n, p),
-                       rules=self.rules, advisories=self.advisories)
+                       rules=self.rules, advisories=self.advisories, engines=self.engines)
             self.done.emit(res)
         except Exception as e:
             self.failed.emit(f"{type(e).__name__}: {e}")
@@ -109,13 +109,24 @@ class MainWindow(QtWidgets.QMainWindow):
         b_dir = QtWidgets.QPushButton("Open folder…")
         self.recursive = QtWidgets.QCheckBox("Include subfolders")
         self.recursive.setChecked(True)
+        self.ck_yara = QtWidgets.QCheckBox("YARA")
+        self.ck_capa = QtWidgets.QCheckBox("capa")
+        self.ck_yara.setToolTip("Match files against YARA rules (Engines… to add rule sets)")
+        self.ck_capa.setToolTip("Identify capabilities of executables with capa (Engines… to set the path)")
+        from .engines_dialog import config_from_settings
+        _ec = config_from_settings(self.settings)
+        self.ck_yara.setChecked(_ec.yara)
+        self.ck_capa.setChecked(_ec.capa)
+        self.ck_yara.toggled.connect(lambda v: self.settings.setValue("engines/yara", v))
+        self.ck_capa.toggled.connect(lambda v: self.settings.setValue("engines/capa", v))
         self.b_scan = QtWidgets.QPushButton("Analyze")
         self.b_scan.setDefault(True)
         b_file.clicked.connect(self.pick_file)
         b_dir.clicked.connect(self.pick_dir)
         self.b_scan.clicked.connect(self.start_scan)
         top = QtWidgets.QHBoxLayout()
-        for w in (QtWidgets.QLabel("Path:"), self.path_edit, b_file, b_dir, self.recursive, self.b_scan):
+        for w in (QtWidgets.QLabel("Path:"), self.path_edit, b_file, b_dir, self.recursive,
+                  self.ck_yara, self.ck_capa, self.b_scan):
             top.addWidget(w)
 
         # --- filter + tabs
@@ -157,7 +168,7 @@ class MainWindow(QtWidgets.QMainWindow):
                          ("Export CSV", self.export_csv), ("Export SARIF / SBOM…", self.export_interop),
                          ("Compare SCD…", self.compare_scd),
                          ("Advisory DB…", self.pick_advisories), ("Rules folder…", self.pick_rules),
-                         ("AI settings…", self.ai_settings)):
+                         ("Engines…", self.engine_settings), ("AI settings…", self.ai_settings)):
             b = QtWidgets.QPushButton(text)
             b.clicked.connect(fn)
             bot.addWidget(b)
@@ -210,7 +221,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.summary_lbl.setText("Scanning…")
         rules_dir = self.settings.value("rules_dir", "") or ""
         adv = self.settings.value("advisories", "") or None
-        self.worker = ScanWorker(path, self.recursive.isChecked(), [rules_dir] if rules_dir else [], adv)
+        from .engines_dialog import config_from_settings
+        eng = config_from_settings(self.settings)
+        self.worker = ScanWorker(path, self.recursive.isChecked(), [rules_dir] if rules_dir else [], adv, eng)
         self.worker.progress.connect(self.on_progress)
         self.worker.done.connect(self.on_done)
         self.worker.failed.connect(self.on_failed)
@@ -241,8 +254,13 @@ class MainWindow(QtWidgets.QMainWindow):
                                ", ".join(a.protocols), os.path.basename(a.source)] for a in res.assets],
               payload=list(range(len(res.assets))))
         high = sum(1 for x in fs if x.severity == "high")
+        eng = "".join(f" · {'YARA' if k == 'yara' else k} "
+                      f"{v.get('matched_files', 0) if k == 'yara' else v.get('analysed', 0) + v.get('cached', 0)}"
+                      for k, v in (res.engines or {}).items())
         self.summary_lbl.setText(f"{len(res.files)} files · {len(res.assets)} assets · "
-                                 f"{len(fs)} findings ({high} high)")
+                                 f"{len(fs)} findings ({high} high){eng}")
+        if res.warnings:
+            self.statusBar().showMessage("Warnings: " + " | ".join(res.warnings)[:300], 15000)
         self.tabs.setTabText(1, f"Assets ({len(res.assets)})")
         self.tabs.setTabText(2, f"Findings ({len(fs)})")
         self.apply_filter(self.filter_edit.text())
@@ -292,6 +310,14 @@ class MainWindow(QtWidgets.QMainWindow):
         if m.exec_(self.t_find.viewport().mapToGlobal(pos)) == act:
             self.tabs.setCurrentWidget(self.ai_panel)
             self.ai_panel.explain(f)
+
+    def engine_settings(self):
+        from .engines_dialog import EnginesDialog, config_from_settings
+        if EnginesDialog(self.settings, self).exec_():
+            c = config_from_settings(self.settings)
+            self.ck_yara.setChecked(c.yara)
+            self.ck_capa.setChecked(c.capa)
+            self.statusBar().showMessage("Engine settings saved (used on next scan)", 6000)
 
     def ai_settings(self):
         self.ai_panel.open_settings()

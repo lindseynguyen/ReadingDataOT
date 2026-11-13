@@ -12,6 +12,7 @@
 [![IEC 62443](https://img.shields.io/badge/IEC%2062443-mapped-black.svg)](#iec-62443-and-mitre-attck-for-ics)
 [![MITRE ATT&CK for ICS](https://img.shields.io/badge/MITRE%20ATT%26CK-for%20ICS-red.svg)](#iec-62443-and-mitre-attck-for-ics)
 [![SARIF | CycloneDX](https://img.shields.io/badge/export-SARIF%20%7C%20CycloneDX-orange.svg)](#sarif-and-cyclonedx)
+[![YARA | capa](https://img.shields.io/badge/engines-YARA%20%7C%20capa-2e7d32.svg)](#yara-and-capa-optional)
 [![AI: internal LLM, opt-in](https://img.shields.io/badge/AI-internal%20LLM%20%C2%B7%20opt--in-8a63d2.svg)](#ai-assistance-optional-internal-model)
 [![OT/ICS Audit & Risk Toolkit](https://img.shields.io/badge/OT%2FICS-Audit%20%26%20Risk%20Toolkit-ff90e8.svg)](https://techsavant013.gumroad.com/l/ot-security-toolkit?utm_source=github&utm_medium=readme&utm_campaign=readingdataot)
 
@@ -174,6 +175,23 @@ It lists added/removed/modified IEDs, addresses, logical devices and nodes, Data
 
 The HTML report draws every asset with an IP, grouped by SCL SubNetwork or /24. Devices with high findings have a red border, duplicate IPs are marked, and hosts that appear only in captures (undocumented) have a dashed orange border.
 
+## YARA and capa (optional)
+
+Run [YARA](https://virustotal.github.io/yara/) rules over every file and [capa](https://github.com/mandiant/capa) over every executable found in the folder, and get the matches as findings in the same report, mapped to IEC 62443-3-3 and ATT&CK for ICS.
+
+```bash
+pip install "otinspect[yara]"                         # or yara-x
+otinspect engines                                     # what is installed, do the rules compile?
+otinspect scan D:\Backup --yara --yara-rules vendor_rules/ --capa --capa-path C:\tools\capa.exe --html report.html
+```
+
+- **Built-in OT/ICS YARA rules**: unapproved remote access tools, credential dumping and offensive tooling, executables able to stop PLCs or download blocks (Snap7), embedded OT protocol stacks, download-and-execute scripts, web shells on HMI/SCADA web servers, ransom notes. Add vendor, CISA or in-house rules; `meta: severity / iec62443 / attack` are honoured.
+- **capa** capabilities are grouped into triage findings (process injection, credential theft, C2, anti-forensics, persistence, code loading…); the full capability list stays in the file details.
+- **Stable by design**: engines are optional, capa runs in a separate time-limited process (whole process tree killed on timeout), per-file timeouts and size limits, a broken rule file is skipped with a warning, capa results are cached by hash. Nothing is executed.
+- Tested on Linux and Windows with yara-python 4.2–4.5, YARA-X and capa 7–10.
+
+GUI: tick **YARA** / **capa** next to *Analyze*, or **Engines…** for rule sets and paths. Details: [docs/engines.md](docs/engines.md).
+
 ## AI assistance (optional, internal model)
 
 Turn a scan into an executive summary, a prioritised remediation plan, an IEC 62443-3-3 view, likely attack paths, an explanation of one finding, or answers to your own questions, using a **model your organisation controls**: a LiteLLM AI gateway, vLLM, Ollama, LM Studio, LocalAI or an Azure OpenAI private endpoint. Off until you configure a profile; scanning stays fully offline.
@@ -258,8 +276,9 @@ otinspect/
   rules/     engine.py (YAML/JSON rules) · advisories.py (CSAF import + matching) · builtin.json
   standards/ mappings.json (finding -> IEC 62443-3-3 SR / ATT&CK for ICS) · lookup and annotation
   report/    export.py (HTML / JSON / CSV) · interop.py (SARIF / CycloneDX) · netmap.py (SVG network map)
+  engines/   yara_engine.py (yara-python / YARA-X) · capa_engine.py (capa subprocess) · rules/otinspect_builtin.yar
   ai/        config.py (profiles, endpoint policy, secrets) · redact.py (pseudonymisation) · context.py · client.py (hardened HTTPS client) · analysis.py (tasks, prompts, audit)
-  gui/       app.py (PyQt5) · ai_panel.py (AI settings and AI Assistant tab)
+  gui/       app.py (PyQt5) · ai_panel.py (AI settings and AI Assistant tab) · engines_dialog.py
   cli.py
 packaging/   PyInstaller spec for the Windows executables
 ```
